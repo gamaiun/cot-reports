@@ -26,6 +26,16 @@ def download_gas_prices():
     gas_price.index = pd.to_datetime(gas_price.index)  # Ensure date index is in datetime format
     return gas_price
 
+def download_corn_prices():
+    ticker = "ZC=F"
+    start_date = "2020-01-01"
+    end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
+    corn_price = yf.download(ticker, start=start_date, end=end_date, interval="1d")
+    corn_price = corn_price[['Close']]  # Keep only the Close column
+    corn_price.index = pd.to_datetime(corn_price.index)  # Ensure date index is in datetime format
+    return corn_price
+
+
 
 agri_cots_to_yf_tickers = {
         'WHEAT-SRW - CHICAGO BOARD OF TRADE': 'ZW=F',
@@ -222,6 +232,40 @@ renaming_dict  ={
     'Concentration-Net LT =8 TDR-Short (All)': 'Concentration-Net 8 TDR-Short'
 }
 
+currency_cots_to_yf_tickers = {
+    'CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE': 'CAD=X',
+    'JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE': 'JPY=X',
+    'U.S. DOLLAR INDEX - ICE FUTURES U.S.': 'DX-Y.NYB',
+    'EURO FX - CHICAGO MERCANTILE EXCHANGE': 'EUR=X',
+    'BRITISH POUND STERLING - CHICAGO MERCANTILE EXCHANGE': 'GBP=X',
+}
+
+
+def download_currency_prices():
+    unique_tickers = set(currency_cots_to_yf_tickers.values())  # Get unique tickers
+    start_date = "2020-01-01"
+    end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
+    currency_prices = {}
+
+    for yf_ticker in unique_tickers:
+        print(f"Downloading price data for {yf_ticker}")
+        try:
+            price_data = yf.download(yf_ticker, start=start_date, end=end_date, interval="1d")
+            if not price_data.empty:
+                price_data = price_data[['Close']].copy()  # Keep only the Close column
+                price_data.index = pd.to_datetime(price_data.index)
+                price_data.rename(columns={'Close': f"{yf_ticker}_Close"}, inplace=True)
+                currency_prices[yf_ticker] = price_data
+                print(f"Successfully downloaded data for {yf_ticker}:\n{price_data.head()}")
+            else:
+                print(f"No data found for {yf_ticker}")
+        except Exception as e:
+            print(f"Failed to download data for {yf_ticker}: {e}")
+    
+    return currency_prices
+
+
+
 def download_agri_prices():
     unique_tickers = set(agri_cots_to_yf_tickers.values())  # Get unique tickers
 
@@ -247,20 +291,38 @@ data_cache_dir = "data_cache"
 os.makedirs(data_cache_dir, exist_ok=True)
 
 
-
 def load_data():
+    currency_combined = pd.DataFrame()
+    currency_cot_multiindex = pd.DataFrame()
+
     current_date_str = pd.Timestamp.now().strftime("%Y%m%d")
     agri_data_file = os.path.join(data_cache_dir, f"agri_data_{current_date_str}.h5")
     natgas_data_file = os.path.join(data_cache_dir, f"natgas_data_{current_date_str}.h5")
+    currency_data_file = os.path.join(data_cache_dir, f"currency_data_{current_date_str}.h5")
+    currency_cot_file = os.path.join(data_cache_dir, f"currency_cot_data_{current_date_str}.h5")
 
     if os.path.exists(agri_data_file) and os.path.exists(natgas_data_file):
         agri_multiindex = pd.read_hdf(agri_data_file, key='agri')
         gas_multiindex = pd.read_hdf(natgas_data_file, key='natgas')
-        print("Loaded cached data from HDF5 files.")
+        print("Loaded cached agricultural and natural gas data from HDF5 files.")
+
+        # Try loading cached currency price data
+        if os.path.exists(currency_data_file):
+            currency_combined = pd.read_hdf(currency_data_file, key='currencies')
+            print("Loaded cached currency price data from HDF5 file.")
+
+        # Try loading cached currency COT data
+        if os.path.exists(currency_cot_file):
+            currency_cot_multiindex = pd.read_hdf(currency_cot_file, key='currency_cot')
+            print("Loaded cached currency COT data from HDF5 file.")
+
     else:
         # Load and preprocess COT data
-        df = pd.concat([pd.DataFrame(cot.cot_year(i, cot_report_type='legacy_futopt')) for i in range(2020, 2025)], ignore_index=False)
-        
+        df = pd.concat([
+            pd.DataFrame(cot.cot_year(i, cot_report_type='legacy_futopt'))
+            for i in range(2020, 2025)
+        ], ignore_index=False)
+
         # Agricultural data processing
         agri_df = df[df['Market and Exchange Names'].isin(agri_cots_list)].copy()
         agri_df.drop(columns=columns_to_drop, inplace=True)
@@ -268,7 +330,7 @@ def load_data():
         agri_df['date2'] = pd.to_datetime(agri_df['date2'])
 
         common_date_range = pd.date_range(start="2020-01-01", end=pd.Timestamp.now(), freq=BDay())
-        
+
         agri_prices = download_agri_prices()
         agri_multiindex = agri_df.set_index(['ticker', 'date2']).sort_index()
 
@@ -283,11 +345,10 @@ def load_data():
         agri_multiindex['Net Traders Noncommercial'] = agri_multiindex['Traders-Noncommercial-Long'] - agri_multiindex['Traders-Noncommercial-Short']
         agri_multiindex['Net Traders Commercial'] = agri_multiindex['Traders-Commercial-Long'] - agri_multiindex['Traders-Commercial-Short']
         agri_multiindex['Net Commercial'] = agri_multiindex['Commercial Long'] - agri_multiindex['Commercial Short']
-        # agri_multiindex['Net Traders Total Reportable'] = agri_multiindex['Traders-Total Reportable-Long'] - agri_multiindex['Traders-Total Reportable-Short']
 
         agri_multiindex = agri_multiindex.groupby(level='ticker').apply(
-                lambda x: x.reindex(common_date_range, level='date2').ffill()
-            ).reset_index(level=0, drop=True) 
+            lambda x: x.reindex(common_date_range, level='date2').ffill()
+        ).reset_index(level=0, drop=True)
 
         # Gas data processing
         gas_price = download_gas_prices()
@@ -300,7 +361,7 @@ def load_data():
         # Drop unnecessary columns and rename columns for gas data
         gas_multiindex.drop(columns=columns_to_drop, inplace=True)
         gas_multiindex.rename(columns=renaming_dict, inplace=True)
-        
+
         gas_multiindex['date2'] = pd.to_datetime(gas_multiindex['date2'])
         gas_multiindex.set_index(['ticker', 'date2'], inplace=True)
 
@@ -314,31 +375,87 @@ def load_data():
         gas_multiindex['Net Traders Noncommercial'] = gas_multiindex['Traders-Noncommercial-Long'] - gas_multiindex['Traders-Noncommercial-Short']
         gas_multiindex['Net Traders Commercial'] = gas_multiindex['Traders-Commercial-Long'] - gas_multiindex['Traders-Commercial-Short']
         gas_multiindex['Net Commercial'] = gas_multiindex['Commercial Long'] - gas_multiindex['Commercial Short']
-        # gas_multiindex['Net Traders Total Reportable'] = gas_multiindex['Traders-Total Reportable-Long'] - gas_multiindex['Traders-Total Reportable-Short']
 
         gas_multiindex = gas_multiindex.groupby(level='ticker').apply(
             lambda x: x.reindex(common_date_range, level='date2').ffill()
-        ).reset_index(level=0, drop=True) 
+        ).reset_index(level=0, drop=True)
 
         # Save to HDF5 cache for future runs
         agri_multiindex.to_hdf(agri_data_file, key='agri', mode='w')
         gas_multiindex.to_hdf(natgas_data_file, key='natgas', mode='w')
 
-    return gas_multiindex, agri_multiindex
+        # Currencies price data processing
+        currency_prices = download_currency_prices()
+        if currency_prices:
+            currency_combined = pd.concat(currency_prices.values(), axis=1)  # Combine all currencies
+            currency_combined.to_hdf(currency_data_file, key='currencies', mode='w')
+
+        # Currency COT data processing
+        currency_cot_df = df[df['Market and Exchange Names'].isin(foreign_exchange_cots)].copy()
+        currency_cot_df.drop(columns=columns_to_drop, inplace=True)
+        currency_cot_df.rename(columns=renaming_dict, inplace=True)
+        currency_cot_df['date2'] = pd.to_datetime(currency_cot_df['date2'])
+
+        currency_cot_multiindex = currency_cot_df.set_index(['ticker', 'date2']).sort_index()
+
+        # Add custom calculations if needed
+        currency_cot_multiindex['Net Traders Noncommercial'] = currency_cot_multiindex['Traders-Noncommercial-Long'] - currency_cot_multiindex['Traders-Noncommercial-Short']
+        currency_cot_multiindex['Net Traders Commercial'] = currency_cot_multiindex['Traders-Commercial-Long'] - currency_cot_multiindex['Traders-Commercial-Short']
+        currency_cot_multiindex['Net Commercial'] = currency_cot_multiindex['Commercial Long'] - currency_cot_multiindex['Commercial Short']
+
+        # Save currency COT data for caching
+        currency_cot_multiindex.to_hdf(currency_cot_file, key='currency_cot', mode='w')
+
+    return gas_multiindex, agri_multiindex, currency_combined, currency_cot_multiindex
 
 # Initial data load
-gas_multiindex, agri_multiindex = load_data()
+gas_multiindex, agri_multiindex, currency_combined, currency_cot_multiindex = load_data()
 
 
 
 def scheduled_update():
-    global gas_multiindex, agri_multiindex
-    gas_multiindex, agri_multiindex = load_data()
+    global gas_multiindex, agri_multiindex, currency_combined, currency_cot_multiindex
+    gas_multiindex, agri_multiindex, currency_combined, currency_cot_multiindex = load_data()
 
 
 scheduler = BackgroundScheduler(timezone="America/New_York")
 scheduler.add_job(scheduled_update, 'cron', day_of_week='fri', hour=15, minute=30)
 scheduler.start()
+
+
+@app.route('/api/data/currency_prices', methods=['GET'])
+def get_currency_price_data():
+    ticker = request.args.get('ticker')
+    if ticker:
+        try:
+            current_date_str = pd.Timestamp.now().strftime("%Y%m%d")
+            currency_data_file = os.path.join(data_cache_dir, f"currency_data_{current_date_str}.h5")
+            currency_data = pd.read_hdf(currency_data_file, key='currencies')
+
+            if ticker not in currency_data.columns:
+                return jsonify({'error': f'Ticker {ticker} not found in currency data'}), 404
+
+            data = currency_data[[ticker]].reset_index().rename(columns={ticker: 'value'}).to_dict(orient='records')
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    return jsonify({'error': 'Ticker not specified'}), 400
+
+@app.route('/api/data/currency_cots', methods=['GET'])
+def get_currency_cot_data():
+    ticker = request.args.get('ticker')
+    column = request.args.get('column')
+    if ticker and column:
+        try:
+            cot_data = currency_cot_multiindex.xs(ticker, level='ticker')
+            if column not in cot_data.columns:
+                return jsonify({'error': f'Column {column} not found for ticker {ticker}'}), 404
+
+            data = cot_data.reset_index()[['date2', column]].to_dict(orient='records')
+            return jsonify(data)
+        except KeyError:
+            return jsonify({'error': f'Data not found for ticker {ticker}'}), 404
+    return jsonify({'error': 'Ticker or column not specified'}), 400
 
 
 @app.route('/api/data/natgas', methods=['GET'])
@@ -365,47 +482,6 @@ def get_agri_options():
     columns = agri_multiindex.columns.tolist()
     return jsonify({'tickers': tickers, 'columns': columns})
 
-
-
-# @app.route("/analyze", methods=["POST"])
-# def analyze():
-#     import logging
-#     logging.basicConfig(level=logging.INFO)
-
-#     data = request.json
-#     stocks = data.get("stocks", "")  # Get the stock tickers from the request body
-
-#     # Step 1: Generate the Analysis Report and Chart
-#     try:
-#         logging.info(f"Starting analysis for stocks: {stocks}")
-#         generate_analysis(stocks)  # Ensure generate_analysis is optimized
-#     except Exception as e:
-#         logging.error(f"Error in analysis generation: {e}")
-#         return jsonify({"error": str(e)}), 500
-
-#     # Step 2: Path to the Generated Files
-#     report_path = "./financial_report.md"
-#     image_path = "./normalized_prices.png"
-
-#     # Step 3: Load the Report Content
-#     try:
-#         with open(report_path, "r") as report_file:
-#             report = report_file.read()
-#     except FileNotFoundError:
-#         return jsonify({"error": "Report generation failed."}), 500
-
-#     # Step 4: Load and Encode the Chart
-#     try:
-#         with open(image_path, "rb") as image_file:
-#             image = base64.b64encode(image_file.read()).decode("utf-8")
-#     except FileNotFoundError:
-#         image = None
-
-#     # Step 5: Return the Response
-#     return jsonify({
-#         "report": report,
-#         "image": image
-#     })
 
 @app.route('/')
 def home():
