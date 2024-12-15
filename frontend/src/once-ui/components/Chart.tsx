@@ -1,5 +1,13 @@
 // import React, { useEffect, useRef } from "react";
 // import { createChart, LineData } from "lightweight-charts";
+// import { Flex } from "./Flex";
+
+// const fixedDateRange = {
+//   start: new Date(new Date().getFullYear() - 3, 0, 1)
+//     .toISOString()
+//     .split("T")[0], // ISO string in yyyy-MM-dd
+//   end: new Date(new Date().getFullYear(), 11, 31).toISOString().split("T")[0], // ISO string in yyyy-MM-dd
+// };
 
 // interface ChartProps {
 //   data: LineData[]; // Array of { time, value } pairs
@@ -15,14 +23,14 @@
 
 //     const chart = createChart(chartContainerRef.current, {
 //       width: chartContainerRef.current.offsetWidth,
-//       height: 300,
+//       height: 400,
 //       layout: {
-//         background: "red",
-//         textColor: "#000000",
+//         background: { color: "transparent" }, // Set background color here
+//         textColor: "#df2a2a",
 //       },
 //       grid: {
-//         vertLines: { color: "#e1e1e1" },
-//         horzLines: { color: "#e1e1e1" },
+//         vertLines: { color: "#292626" },
+//         horzLines: { color: "#292626" },
 //       },
 //       timeScale: {
 //         timeVisible: true,
@@ -42,8 +50,8 @@
 //     if (fixedDateRange) {
 //       const { start, end } = fixedDateRange;
 //       chart.timeScale().setVisibleRange({
-//         from: new Date(start).getTime() / 1000,
-//         to: new Date(end).getTime() / 1000,
+//         from: start, // Pass the string directly, as it's already ISO formatted
+//         to: end, // Pass the string directly, as it's already ISO formatted
 //       });
 //     }
 
@@ -61,18 +69,17 @@
 //   }, [data, fixedDateRange]);
 
 //   return (
-//     <div>
-//       {title && <h3>{title}</h3>}
-//       <div ref={chartContainerRef} style={{ width: "100%", height: "300px" }} />
-//     </div>
+//     <>
+//       {/* {title && <h3>{title}</h3>} */}
+//       <div ref={chartContainerRef} style={{ width: "100%", height: "400px" }} />
+//     </>
 //   );
 // };
 
 // export default Chart;
 
 import React, { useEffect, useRef } from "react";
-import { createChart, LineData } from "lightweight-charts";
-import { Flex } from "./Flex";
+import { createChart, LineData, Time } from "lightweight-charts";
 
 interface ChartProps {
   data: LineData[]; // Array of { time, value } pairs
@@ -110,13 +117,22 @@ const Chart: React.FC<ChartProps> = ({ data, title, fixedDateRange }) => {
     });
 
     const lineSeries = chart.addLineSeries();
-    lineSeries.setData(data);
+
+    // Ensure data is sorted by time (required by lightweight-charts)
+    const sortedData = [...data].sort(
+      (a, b) =>
+        new Date(a.time as string).getTime() -
+        new Date(b.time as string).getTime()
+    );
+    lineSeries.setData(sortedData);
 
     if (fixedDateRange) {
       const { start, end } = fixedDateRange;
+
+      // Convert start and end to `Time` (ISO Date strings work as valid `Time` inputs)
       chart.timeScale().setVisibleRange({
-        from: new Date(start).getTime() / 1000,
-        to: new Date(end).getTime() / 1000,
+        from: start as Time, // Cast as Time since ISO string is valid
+        to: end as Time, // Cast as Time since ISO string is valid
       });
     }
 
@@ -135,7 +151,7 @@ const Chart: React.FC<ChartProps> = ({ data, title, fixedDateRange }) => {
 
   return (
     <>
-      {/* {title && <h3>{title}</h3>} */}
+      {title && <h3>{title}</h3>}
       <div ref={chartContainerRef} style={{ width: "100%", height: "400px" }} />
     </>
   );

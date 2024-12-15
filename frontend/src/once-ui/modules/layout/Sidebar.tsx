@@ -455,8 +455,8 @@ const Sidebar: React.FC = ({}) => {
           <ToggleButton
             width="fill"
             align="start"
-            href="cad"
-            selected={pathname === "cad"}
+            href="gbp"
+            selected={pathname === "gbp"}
           >
             <Flex
               padding="4"
@@ -465,7 +465,7 @@ const Sidebar: React.FC = ({}) => {
               textVariant="label-default-s"
             >
               <Flex height="1" width="16" alpha="neutral-strong"></Flex>
-              Canadian Dollar
+              British Pound
             </Flex>
           </ToggleButton>
           <ToggleButton
