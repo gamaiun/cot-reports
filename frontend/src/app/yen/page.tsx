@@ -10,23 +10,21 @@ interface ChartData {
   value: number;
 }
 
-const ChartingPage: React.FC = () => {
-  const [priceData, setPriceData] = useState<ChartData[]>([]); // Data for price chart
-  const [cotData, setCotData] = useState<ChartData[]>([]); // Data for COT chart
-  const [cotColumns, setCotColumns] = useState<string[]>([]); // Dropdown options
-  const [selectedColumn, setSelectedColumn] = useState<string>("Net Dealers"); // Default column
+const JPYChartingPage: React.FC = () => {
+  const [priceData, setPriceData] = useState<ChartData[]>([]);
+  const [cotData, setCotData] = useState<ChartData[]>([]);
+  const [cotColumns, setCotColumns] = useState<string[]>([]);
+  const [selectedColumn, setSelectedColumn] = useState<string>("Net Dealers");
   const [loadingPrice, setLoadingPrice] = useState(true);
   const [loadingCot, setLoadingCot] = useState(true);
 
-  // Define fixed date range for the last 3 years
   const fixedDateRange = {
     start: new Date(new Date().getFullYear() - 3, 0, 1)
       .toISOString()
-      .split("T")[0], // January 1st of 3 years ago
-    end: new Date(new Date().getFullYear(), 11, 31).toISOString().split("T")[0], // December 31st of current year
+      .split("T")[0],
+    end: new Date(new Date().getFullYear(), 11, 31).toISOString().split("T")[0],
   };
 
-  // Filter data to include only the last 3 years
   const filterDataForLast3Years = (data: ChartData[]): ChartData[] =>
     data.filter(
       (item) =>
@@ -38,14 +36,12 @@ const ChartingPage: React.FC = () => {
       try {
         setLoadingPrice(true);
         const res = await fetch(
-          "http://127.0.0.1:5000/api/data/currency_prices?ticker=BRITISH%20POUND%20STERLING%20-%20CHICAGO%20MERCANTILE%20EXCHANGE"
+          "http://127.0.0.1:5000/api/data/currency_prices?ticker=JAPANESE%20YEN%20-%20CHICAGO%20MERCANTILE%20EXCHANGE"
         );
         const data = await res.json();
 
-        console.log("Currency Prices API Response:", data); // Debugging
-
         const formattedData: ChartData[] = data.map((item: any) => ({
-          time: new Date(item.time).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
+          time: new Date(item.time).toISOString().split("T")[0],
           value: item.value,
         }));
 
@@ -58,27 +54,23 @@ const ChartingPage: React.FC = () => {
     };
 
     fetchPriceData();
-  }, []); // Empty dependency array ensures this runs only once
+  }, []);
 
   useEffect(() => {
     const fetchCotData = async () => {
       try {
         setLoadingCot(true);
         const res = await fetch(
-          `http://127.0.0.1:5000/api/data/currency_combined?ticker=BRITISH%20POUND%20STERLING%20-%20CHICAGO%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
+          `http://127.0.0.1:5000/api/data/currency_combined?ticker=JAPANESE%20YEN%20-%20CHICAGO%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
             selectedColumn
           )}`
         );
         const data = await res.json();
 
-        console.log("Raw COT data:", data); // Log the raw API response
-
         const formattedData: ChartData[] = data.map((item: any) => ({
-          time: new Date(item.time).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
+          time: new Date(item.time).toISOString().split("T")[0],
           value: item.value,
         }));
-
-        console.log("Formatted COT data:", formattedData); // Log the transformed data
 
         setCotData(filterDataForLast3Years(formattedData));
       } catch (error) {
@@ -89,7 +81,7 @@ const ChartingPage: React.FC = () => {
     };
 
     fetchCotData();
-  }, [selectedColumn]); // Refetch data when `selectedColumn` changes
+  }, [selectedColumn]);
 
   useEffect(() => {
     const fetchCotColumns = async () => {
@@ -105,11 +97,10 @@ const ChartingPage: React.FC = () => {
     };
 
     fetchCotColumns();
-  }, []); // Empty dependency array ensures this runs only once
+  }, []);
 
-  // Map cotColumns to DropdownOptions and exclude specific columns
   const dropdownOptions: DropdownOptions[] = cotColumns
-    .filter((column) => column !== "YF_Ticker" && column !== "YF_Ticker_Values") // Exclude specific columns
+    .filter((column) => column !== "YF_Ticker" && column !== "YF_Ticker_Values")
     .map((column) => ({
       label: column,
       value: column,
@@ -125,52 +116,37 @@ const ChartingPage: React.FC = () => {
       direction="row"
       flex={1}
     >
-      {/* Sidebar: Assign a fixed width */}
       <Sidebar />
 
-      {/* Main Content: Allow it to take the remaining space */}
-      <Flex
-        direction="column"
-        flex={1} // Take the remaining space
-        paddingLeft="l"
-      >
+      <Flex direction="column" flex={1} paddingLeft="l">
         <div data-theme="dark" data-neutral="gray" data-brand="violet">
-          {/* Top Chart: GBP Prices */}
           <div>
-            <h2>GBPUSD</h2>
+            <h2>JPYUSD</h2>
             {loadingPrice ? (
               <p>Loading price data...</p>
             ) : priceData.length > 0 ? (
-              <Chart
-                data={priceData}
-                // title="GBP Futures Prices (Last 3 Years)"
-                fixedDateRange={fixedDateRange}
-              />
+              <Chart data={priceData} fixedDateRange={fixedDateRange} />
             ) : (
               <p>No price data available.</p>
             )}
           </div>
 
-          {/* Dropdown for Selecting COT Column */}
           <div style={{ marginTop: "40px" }}>
             <label htmlFor="cot-column">Select COT Report: </label>
             <Dropdown
               options={dropdownOptions}
               selectedOption={selectedColumn}
-              onOptionSelect={(option) => setSelectedColumn(option.value)} // Update selectedColumn on selection
+              onOptionSelect={(option) => setSelectedColumn(option.value)}
             />
           </div>
 
-          {/* Bottom Chart: COT Data */}
           <div style={{ marginTop: "30px" }}>
-            {/* <h2>{selectedColumn} COT Chart</h2> */}
             {loadingCot ? (
               <p>Loading COT data...</p>
             ) : cotData.length > 0 ? (
               <Chart
-                key={selectedColumn} // Force re-render when `selectedColumn` changes
+                key={selectedColumn}
                 data={cotData}
-                // title={`COT Data: ${selectedColumn} (Last 3 Years)`}
                 fixedDateRange={fixedDateRange}
               />
             ) : (
@@ -183,4 +159,4 @@ const ChartingPage: React.FC = () => {
   );
 };
 
-export default ChartingPage;
+export default JPYChartingPage;

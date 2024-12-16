@@ -455,6 +455,22 @@ const Sidebar: React.FC = ({}) => {
           <ToggleButton
             width="fill"
             align="start"
+            href="euro"
+            selected={pathname === "gbp"}
+          >
+            <Flex
+              padding="4"
+              gap="12"
+              alignItems="center"
+              textVariant="label-default-s"
+            >
+              <Flex height="1" width="16" alpha="neutral-strong"></Flex>
+              Euro
+            </Flex>
+          </ToggleButton>
+          <ToggleButton
+            width="fill"
+            align="start"
             href="gbp"
             selected={pathname === "gbp"}
           >
@@ -468,11 +484,12 @@ const Sidebar: React.FC = ({}) => {
               British Pound
             </Flex>
           </ToggleButton>
+
           <ToggleButton
             width="fill"
             align="start"
-            href=""
-            selected={pathname === "overview"}
+            href="yen"
+            selected={pathname === "yen"}
           >
             <Flex
               padding="4"
@@ -484,10 +501,11 @@ const Sidebar: React.FC = ({}) => {
               Japanese Yen
             </Flex>
           </ToggleButton>
+
           <ToggleButton
             width="fill"
             align="start"
-            href=""
+            href="cad"
             selected={pathname === "projects"}
           >
             <Flex

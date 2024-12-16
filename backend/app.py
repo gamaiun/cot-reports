@@ -322,76 +322,29 @@ def get_currency_cot_data():
         return jsonify({'error': f'Data not found for ticker {ticker}'}), 404
 
 
-# @app.route('/api/data/currency_combined', methods=['GET'])
-# def get_currency_combined_data():
-#     ticker = request.args.get('ticker')  # Requested ticker
-#     column = request.args.get('column')  # Requested column
 
-#     print(f"Request Params - Ticker: {ticker}, Column: {column}")
+# SERVES CURRENCY FUTURE PRICES
 
-#     if not ticker or not column:
-#         return jsonify({'error': 'Ticker or column not specified'}), 400
-
-#     try:
-#         # Debug: Check the structure of currency_combined
-#         print("currency_combined Columns:", currency_combined.columns)
-#         print("currency_combined Index:", currency_combined.index.names)
-#         print("currency_combined Sample:")
-#         print(currency_combined.head())
-
-#         # Filter the data for the requested ticker
-#         if 'ticker' not in currency_combined.index.names:
-#             return jsonify({'error': "'ticker' is not part of the DataFrame index"}), 500
-
-#         # Use `.xs()` to filter by `ticker` in the index
-#         filtered_data = currency_combined.xs(ticker, level='ticker')
-
-#         if filtered_data.empty:
-#             return jsonify({'error': f"Data not found for ticker: {ticker}"}), 404
-
-#         if column not in filtered_data.columns:
-#             return jsonify({'error': f"Column '{column}' not found in data for ticker: {ticker}"}), 404
-
-#         # Format the response
-#         response_data = filtered_data[[column]].rename(columns={column: 'value'}).copy()
-#         response_data['time'] = response_data.index.astype(str)  # Convert index to string
-
-#         # Debug: Check the filtered response data
-#         print("Filtered Response Data Sample:")
-#         print(response_data.head())
-
-#         return jsonify(response_data[['time', 'value']].to_dict(orient='records'))
-
-#     except Exception as e:
-#         print(f"Error in /api/data/currency_combined: {e}")
-#         return jsonify({'error': str(e)}), 500
-
-@app.route('/api/data/currency_combined', methods=['GET'])
-def get_currency_combined_data():
-    CURRENCY_COTS_TO_YF_TICKERS = {
-    'CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE': 'CAD=X',
-    'JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE': 'JPY=X',
-    'U.S. DOLLAR INDEX - ICE FUTURES U.S.': 'DX-Y.NYB',
-    'EURO FX - CHICAGO MERCANTILE EXCHANGE': 'EUR=X',
-    'BRITISH POUND STERLING - CHICAGO MERCANTILE EXCHANGE': 'GBP=X',
-}
-
+@app.route('/api/data/currency_prices', methods=['GET'])
+def get_currency_prices():
+    """
+    Serve historical currency prices for the top chart.
+    """
     ticker = request.args.get('ticker')  # Requested ticker
-    column = request.args.get('column')  # Requested column
 
-    print(f"Request Params - Ticker: {ticker}, Column: {column}")
+    print(f"Request Params - Ticker: {ticker}")
 
-    if not ticker or not column:
-        return jsonify({'error': 'Ticker or column not specified'}), 400
+    if not ticker:
+        return jsonify({'error': 'Ticker not specified'}), 400
 
     try:
-        # Debug: Check the structure of currency_combined
+        # Ensure the `currency_combined` DataFrame is available
         print("currency_combined Columns:", currency_combined.columns)
         print("currency_combined Index:", currency_combined.index.names)
         print("currency_combined Sample:")
         print(currency_combined.head())
 
-        # Filter the data for the requested ticker
+        # Filter data for the requested ticker
         if 'ticker' not in currency_combined.index.names:
             return jsonify({'error': "'ticker' is not part of the DataFrame index"}), 500
 
@@ -399,31 +352,60 @@ def get_currency_combined_data():
         filtered_data = currency_combined.xs(ticker, level='ticker')
 
         if filtered_data.empty:
-            return jsonify({'error': f"Data not found for ticker: {ticker}"}), 404
+            return jsonify({'error': f"No data found for ticker: {ticker}"}), 404
 
-        # Check if the column is `YF_Ticker_Values`
-        if column == "YF_Ticker_Values" or column in CURRENCY_COTS_TO_YF_TICKERS.values():
-            if "YF_Ticker_Values" in filtered_data.columns:
-                column = "YF_Ticker_Values"
-            else:
-                return jsonify({'error': f"Derived column 'YF_Ticker_Values' not found for ticker: {ticker}"}), 404
-
-        if column not in filtered_data.columns:
-            return jsonify({'error': f"Column '{column}' not found in data for ticker: {ticker}"}), 404
+        # Ensure we return YF_Ticker_Values
+        if "YF_Ticker_Values" not in filtered_data.columns:
+            return jsonify({'error': "'YF_Ticker_Values' column not found in data"}), 404
 
         # Format the response
-        response_data = filtered_data[[column]].rename(columns={column: 'value'}).copy()
-        response_data['time'] = response_data.index.astype(str)  # Convert index to string
+        response_data = filtered_data[["YF_Ticker_Values"]].rename(
+            columns={"YF_Ticker_Values": "value"}
+        ).copy()
+        response_data["time"] = response_data.index.astype(str)  # Convert index to string
 
-        # Debug: Check the filtered response data
+        # Debug: Log the filtered response data
+        print("Filtered Currency Prices Response Sample:")
+        print(response_data.head())
+
+        return jsonify(response_data[["time", "value"]].to_dict(orient="records"))
+
+    except Exception as e:
+        print(f"Error in /api/data/currency_prices: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+
+# SERVES CURRENCY COT REPORTS
+
+@app.route("/api/data/currency_combined", methods=["GET"])
+def get_currency_combined_data():
+    ticker = request.args.get("ticker")
+    column = request.args.get("column")
+
+    # Log the request parameters
+    print(f"Request Params - Ticker: {ticker}, Column: {column}")
+
+    try:
+        filtered_df = currency_combined.loc[
+            currency_combined.index.get_level_values("ticker") == ticker
+        ]
+
+        # Log filtered data for debugging
+        print(f"Filtered Data for Ticker {ticker}:")
+        print(filtered_df.head())
+
+        # Format and return response
+        response_data = filtered_df[[column]].dropna().reset_index()
+        response_data = response_data.rename(columns={"date": "time", column: "value"})
         print("Filtered Response Data Sample:")
         print(response_data.head())
 
-        return jsonify(response_data[['time', 'value']].to_dict(orient='records'))
+        return response_data.to_json(orient="records")
+    except KeyError as e:
+        print(f"KeyError: {e}")
+        return jsonify({"error": f"Ticker {ticker} or column {column} not found"}), 400
 
-    except Exception as e:
-        print(f"Error in /api/data/currency_combined: {e}")
-        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/options/currency_combined', methods=['GET'])
