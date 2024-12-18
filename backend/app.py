@@ -193,21 +193,39 @@ def download_gas_prices():
     return gas_price
 
 def download_agri_prices():
+    """
+    Download agricultural prices and combine them into a single DataFrame with clean column names.
+    """
     unique_tickers = set(agri_cots_to_yf_tickers.values())
-    agri_prices = {}
+    all_prices = []  # Collect individual DataFrames
     start_date = "2020-01-01"
     end_date = pd.Timestamp.now().strftime("%Y-%m-%d")
 
     for yf_ticker in unique_tickers:
         print(f"Downloading price data for {yf_ticker}")
-        price_data = yf.download(yf_ticker, start=start_date, end=end_date, interval="1d")
-        price_data = price_data[['Close']]
-        price_data.index = pd.to_datetime(price_data.index)
-        price_data.rename(columns={'Close': f"{yf_ticker}_Close"}, inplace=True)
-        agri_prices[yf_ticker] = price_data
+        try:
+            price_data = yf.download(yf_ticker, start=start_date, end=end_date, interval="1d")
+            if not price_data.empty:
+                # Extract and rename 'Close' column
+                price_data = price_data[['Close']].copy()
+                price_data.index = pd.to_datetime(price_data.index)
+                price_data.rename(columns={'Close': yf_ticker}, inplace=True)
+                all_prices.append(price_data)
+        except Exception as e:
+            print(f"Failed to download data for {yf_ticker}: {e}")
 
-    return agri_prices
+    if all_prices:
+        # Combine all prices into one DataFrame
+        combined_prices = pd.concat(all_prices, axis=1).sort_index()
 
+        # Fix column names to ensure they are clean
+        combined_prices.columns = combined_prices.columns.get_level_values(0)
+        
+        return combined_prices.reset_index()
+    else:
+        return pd.DataFrame()  # Return empty DataFrame if no data is available
+    
+    
 def load_data():
     current_date_str = pd.Timestamp.now().strftime("%Y%m%d")
     agri_data_file = os.path.join(data_cache_dir, f"agri_data_{current_date_str}.h5")
@@ -221,64 +239,67 @@ def load_data():
         # Load and preprocess COT data
         df = pd.concat([pd.DataFrame(cot.cot_year(i, cot_report_type='legacy_futopt')) for i in range(2020, 2025)], ignore_index=False)
 
-        # Agricultural data processing
+        ### Agricultural Data Processing ###
         agri_df = df[df['Market and Exchange Names'].isin(agri_cots_list)].copy()
         agri_df.drop(columns=columns_to_drop, inplace=True)
         agri_df.rename(columns=renaming_dict, inplace=True)
         agri_df['date2'] = pd.to_datetime(agri_df['date2'])
-
-        common_date_range = pd.date_range(start="2020-01-01", end=pd.Timestamp.now(), freq=BDay())
-        agri_prices = download_agri_prices()
         agri_multiindex = agri_df.set_index(['ticker', 'date2']).sort_index()
 
-        for ticker, yf_ticker in agri_cots_to_yf_tickers.items():
-            if yf_ticker in agri_prices:
-                agri_multiindex = agri_multiindex.reset_index().merge(
-                    agri_prices[yf_ticker], left_on="date2", right_index=True, how="left", suffixes=("", "_dup")
-                ).set_index(['ticker', 'date2']).sort_index()
-                agri_multiindex = agri_multiindex.loc[:, ~agri_multiindex.columns.str.endswith('_dup')]
+        # Download and align agricultural prices
+        agri_prices = download_agri_prices()
+        agri_prices['Date'] = pd.to_datetime(agri_prices['Date'])  # Ensure Date is datetime
+        agri_prices.set_index('Date', inplace=True)  # Set index to Date
 
-        # Add custom net calculations for agri
+        # Map and populate prices into agri_multiindex
+        agri_multiindex['YF_Price'] = agri_multiindex.apply(
+            lambda row: agri_prices.loc[row.name[1], agri_cots_to_yf_tickers.get(row.name[0])]
+            if row.name[1] in agri_prices.index and agri_cots_to_yf_tickers.get(row.name[0]) in agri_prices.columns else None,
+            axis=1
+        )
+
         agri_multiindex['Net Traders Noncommercial'] = agri_multiindex['Traders-Noncommercial-Long'] - agri_multiindex['Traders-Noncommercial-Short']
         agri_multiindex['Net Traders Commercial'] = agri_multiindex['Traders-Commercial-Long'] - agri_multiindex['Traders-Commercial-Short']
         agri_multiindex['Net Commercial'] = agri_multiindex['Commercial Long'] - agri_multiindex['Commercial Short']
 
-        agri_multiindex = agri_multiindex.groupby(level='ticker').apply(
-            lambda x: x.reindex(common_date_range, level='date2').ffill()
-        ).reset_index(level=0, drop=True)
+        ### Gas Data Processing ###
+        gas_df = df[df['Market and Exchange Names'].isin(gas_cots)].copy()
+        gas_df.rename(columns={'Market and Exchange Names': 'ticker', 'As of Date in Form YYYY-MM-DD': 'date2'}, inplace=True)
+        gas_df.drop(columns=columns_to_drop, inplace=True)
+        gas_df.rename(columns=renaming_dict, inplace=True)
+        gas_df['date2'] = pd.to_datetime(gas_df['date2'])
 
-        # Gas data processing
-        gas_price = download_gas_prices()
-        gas_multiindex = df[df['Market and Exchange Names'].isin(gas_cots)].copy()
+        gas_multiindex = gas_df.set_index(['ticker', 'date2']).sort_index()
 
-        gas_multiindex.rename(columns={'Market and Exchange Names': 'ticker', 'As of Date in Form YYYY-MM-DD': 'date2'}, inplace=True)
-        gas_multiindex.drop(columns=columns_to_drop, inplace=True)
-        gas_multiindex.rename(columns=renaming_dict, inplace=True)
-        gas_multiindex['date2'] = pd.to_datetime(gas_multiindex['date2'])
-        gas_multiindex.set_index(['ticker', 'date2'], inplace=True)
+        # Download and align gas prices
+        gas_prices = download_gas_prices()
+        gas_prices.index = pd.to_datetime(gas_prices.index)
+        gas_prices = gas_prices.reindex(gas_prices.index, method='ffill')
 
-        gas_multiindex = gas_multiindex.reset_index().merge(
-            gas_price, left_on="date2", right_index=True, how="left", suffixes=("", "_dup")
-        ).set_index(['ticker', 'date2']).sort_index()
-        gas_multiindex.rename(columns={'Close': 'NG_Close'}, inplace=True)
-
-        # Add custom net calculations for gas
+        gas_multiindex['NG_Close'] = gas_multiindex.apply(
+            lambda row: gas_prices.loc[row.name[1], 'Close']
+            if row.name[1] in gas_prices.index else None,
+            axis=1
+        )
         gas_multiindex['Net Traders Noncommercial'] = gas_multiindex['Traders-Noncommercial-Long'] - gas_multiindex['Traders-Noncommercial-Short']
         gas_multiindex['Net Traders Commercial'] = gas_multiindex['Traders-Commercial-Long'] - gas_multiindex['Traders-Commercial-Short']
         gas_multiindex['Net Commercial'] = gas_multiindex['Commercial Long'] - gas_multiindex['Commercial Short']
 
-        gas_multiindex = gas_multiindex.groupby(level='ticker').apply(
-            lambda x: x.reindex(common_date_range, level='date2').ffill()
-        ).reset_index(level=0, drop=True)
-
-        # Save to HDF5 cache
+        # Save processed data to cache
         agri_multiindex.to_hdf(agri_data_file, key='agri', mode='w')
         gas_multiindex.to_hdf(natgas_data_file, key='natgas', mode='w')
 
-    return gas_multiindex, agri_multiindex
+        print("Processed and saved agricultural and natural gas data to cache.")
+        print("Agri MultiIndex Columns:", agri_multiindex.columns)
+        print("Agri MultiIndex Index Levels:", agri_multiindex.index.names)
+
+    return agri_multiindex, gas_multiindex
+
+
+
 
 # Initial data load
-gas_multiindex, agri_multiindex = load_data()
+agri_multiindex, gas_multiindex = load_data()
 # currency_combined = pd.DataFrame()  # Initialize as empty globally
 
 def initialize_data():
@@ -286,8 +307,6 @@ def initialize_data():
     print("Initializing currency data...")
     try:
         currency_combined = load_currency_data()  # Load data
-        print(currency_combined.head())  # Debug: Print the first few rows
-        print(currency_combined.columns)  # Debug: Print all column names
     except Exception as e:
         print("Error initializing currency data:", e)
         currency_combined = pd.DataFrame()  # Fallback to empty DataFrame
@@ -460,4 +479,4 @@ if __name__ == "__main__":
     initialize_data()
 
     # Run the Flask app
-    app.run(debug=True)
+    app.run(debug=False)

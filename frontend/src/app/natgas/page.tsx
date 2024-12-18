@@ -137,7 +137,7 @@ const NatGasPage: React.FC = () => {
             ) : (
               <Chart
                 data={priceData}
-                title="Natural Gas Close Prices (Last 3 Years)"
+                // title="Natural Gas Close Prices (Last 3 Years)"
                 fixedDateRange={fixedDateRange}
               />
             )}
@@ -161,7 +161,7 @@ const NatGasPage: React.FC = () => {
             ) : (
               <Chart
                 data={cotData}
-                title={`COT Data: ${selectedColumn} (Last 3 Years)`}
+                // title={`COT Data: ${selectedColumn} (Last 3 Years)`}
                 fixedDateRange={fixedDateRange}
               />
             )}

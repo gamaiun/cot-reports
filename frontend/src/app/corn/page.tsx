@@ -46,13 +46,13 @@ const CornPage: React.FC = () => {
     const fetchPriceData = async () => {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/data/agri?ticker=CORN%20-%20CHICAGO%20BOARD%20OF%20TRADE&column=ZC=F_Close"
+          "http://127.0.0.1:5000/api/data/agri?ticker=CORN%20-%20CHICAGO%20BOARD%20OF%20TRADE&column=YF_Price"
         );
         const data = await res.json();
 
         const formattedData: ChartData[] = data.map((item: any) => ({
           time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
-          value: item["ZC=F_Close"],
+          value: item["YF_Price"],
         }));
 
         setPriceData(filterDataForLast3Years(formattedData));
@@ -139,7 +139,7 @@ const CornPage: React.FC = () => {
             ) : (
               <Chart
                 data={priceData}
-                title="Corn Close Prices (Last 3 Years)"
+                // title="Corn Close Prices (Last 3 Years)"
                 fixedDateRange={fixedDateRange}
               />
             )}
@@ -162,7 +162,7 @@ const CornPage: React.FC = () => {
             ) : (
               <Chart
                 data={cotData}
-                title={`COT Data: ${selectedColumn} (Last 3 Years)`}
+                // title={`COT Data: ${selectedColumn} (Last 3 Years)`}
                 fixedDateRange={fixedDateRange}
               />
             )}

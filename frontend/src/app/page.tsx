@@ -1,189 +1,175 @@
 "use client";
-
-import React from "react";
-
-import {
-  Heading,
-  Text,
-  Flex,
-  Button,
-  Grid,
-  Icon,
-  InlineCode,
-  Logo,
-  LetterFx,
-  Arrow,
-} from "@/once-ui/components";
-import Link from "next/link";
+import React, { useEffect, useState } from "react";
+import Chart from "./../once-ui/components/Chart";
+import { Background } from "../once-ui/components/Background"; // Adjust path based on file location
+import { Flex } from "@/once-ui/components/Flex";
+import { Dropdown, DropdownOptions } from "@/once-ui/components";
 import { Sidebar } from "@/once-ui/modules";
+interface ChartData {
+  time: string; // ISO format (yyyy-mm-dd)
+  value: number;
+}
 
-export default function Home() {
-  const links = [
-    {
-      href: "https://once-ui.com/docs/theming",
-      title: "Themes",
-      description: "Style your app in minutes.",
-    },
-    {
-      href: "https://once-ui.com/docs/flexComponent",
-      title: "Layout",
-      description: "Build responsive layouts.",
-    },
-    {
-      href: "https://once-ui.com/docs/typography",
-      title: "Typography",
-      description: "Scale text automatically.",
-    },
-  ];
+const NatGasPage: React.FC = () => {
+  const [priceData, setPriceData] = useState<ChartData[]>([]); // Data for price chart
+  const [cotData, setCotData] = useState<ChartData[]>([]); // Data for COT chart
+  const [cotColumns, setCotColumns] = useState<string[]>([]); // Dropdown options
+  const [selectedColumn, setSelectedColumn] =
+    useState<string>("Noncommercial Long"); // Default column
+  const [loadingPrice, setLoadingPrice] = useState(true);
+  const [loadingCot, setLoadingCot] = useState(true);
+
+  // Map cotColumns to DropdownOptions
+  const dropdownOptions: DropdownOptions[] = cotColumns.map((column) => ({
+    label: column,
+    value: column,
+  }));
+  // Define fixed date range for the last 3 years
+  const fixedDateRange = {
+    start: new Date(new Date().getFullYear() - 3, 0, 1)
+      .toISOString()
+      .split("T")[0], // January 1st of 3 years ago
+    end: new Date(new Date().getFullYear(), 11, 31).toISOString().split("T")[0], // December 31st of current year
+  };
+
+  // Filter data to include only the last 3 years
+  const filterDataForLast3Years = (data: ChartData[]): ChartData[] =>
+    data.filter(
+      (item) =>
+        item.time >= fixedDateRange.start && item.time <= fixedDateRange.end
+    );
+
+  // Fetch natural gas prices
+  useEffect(() => {
+    const fetchPriceData = async () => {
+      try {
+        const res = await fetch(
+          "http://127.0.0.1:5000/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close"
+        );
+        const data = await res.json();
+
+        const formattedData: ChartData[] = data.map((item: any) => ({
+          time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
+          value: item.NG_Close,
+        }));
+
+        setPriceData(filterDataForLast3Years(formattedData));
+        setLoadingPrice(false);
+      } catch (error) {
+        console.error("Error fetching price data:", error);
+        setLoadingPrice(false);
+      }
+    };
+
+    fetchPriceData();
+  }, []);
+
+  // Fetch COT data for the selected column
+  useEffect(() => {
+    const fetchCotData = async () => {
+      try {
+        setLoadingCot(true);
+        const res = await fetch(
+          `http://127.0.0.1:5000/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
+            selectedColumn
+          )}`
+        );
+        const data = await res.json();
+
+        const formattedData: ChartData[] = data.map((item: any) => ({
+          time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
+          value: item[selectedColumn],
+        }));
+
+        setCotData(filterDataForLast3Years(formattedData));
+        setLoadingCot(false);
+      } catch (error) {
+        console.error("Error fetching COT data:", error);
+        setLoadingCot(false);
+      }
+    };
+
+    fetchCotData();
+  }, [selectedColumn]);
+
+  // Fetch dropdown options for COT columns
+  useEffect(() => {
+    const fetchCotColumns = async () => {
+      try {
+        const res = await fetch("http://127.0.0.1:5000/api/options/natgas");
+        const data = await res.json();
+        setCotColumns(data.columns || []);
+      } catch (error) {
+        console.error("Error fetching COT columns:", error);
+      }
+    };
+
+    fetchCotColumns();
+  }, []);
 
   return (
-    <>
-      <Sidebar />
+    <Flex
+      fillWidth
+      paddingTop="xl"
+      paddingLeft="xl"
+      paddingRight="xl"
+      paddingBottom="xl"
+      direction="row"
+      flex={1}
+    >
+      {/* Sidebar: Assign a fixed width */}
+      <Sidebar
+      // style={{ flex: "0 0 300px", maxWidth: "300px", width: "300px" }}
+      />
+
+      {/* Main Content: Allow it to take the remaining space */}
       <Flex
-        fillWidth
-        paddingTop="l"
-        paddingX="l"
         direction="column"
-        alignItems="center"
-        flex={1}
+        flex={1} // Take the remaining space
+        paddingLeft="l"
       >
-        <Flex
-          position="relative"
-          as="section"
-          overflow="hidden"
-          fillWidth
-          minHeight="0"
-          maxWidth={68}
-          direction="column"
-          alignItems="center"
-          flex={1}
-        >
-          <Flex
-            as="main"
-            direction="column"
-            justifyContent="center"
-            fillWidth
-            fillHeight
-            padding="l"
-            gap="l"
-          >
-            <Flex mobileDirection="column" fillWidth gap="24">
-              <Flex position="relative" flex={2} paddingTop="56" paddingX="xl">
-                <Logo
-                  size="xl"
-                  icon={false}
-                  style={{ zIndex: "1" }}
-                  href="https://once-ui.com"
-                />
-              </Flex>
-              <Flex
-                position="relative"
-                flex={4}
-                gap="24"
-                marginBottom="104"
-                direction="column"
-              >
-                <InlineCode
-                  className="shadow-m"
-                  style={{
-                    width: "fit-content",
-                    padding: "var(--static-space-8) var(--static-space-16)",
-                    backdropFilter: "blur(var(--static-space-1))",
-                  }}
-                >
-                  Start by editing{" "}
-                  <span className="brand-on-background-medium">
-                    app/page.tsx
-                  </span>
-                </InlineCode>
-                <Heading wrap="balance" variant="display-strong-s">
-                  <span className="font-code">
-                    <LetterFx trigger="instant">
-                      Helping designers code and developers design
-                    </LetterFx>
-                  </span>
-                </Heading>
-                <Button
-                  id="readDocs"
-                  href="https://once-ui.com/docs"
-                  variant="secondary"
-                >
-                  <Flex alignItems="center">
-                    Read docs
-                    <Arrow trigger="#readDocs" />
-                  </Flex>
-                </Button>
-              </Flex>
-            </Flex>
-            <Grid
-              radius="l"
-              border="neutral-medium"
-              borderStyle="solid-1"
-              columns="repeat(3, 1fr)"
-              tabletColumns="1col"
-              mobileColumns="1col"
-              fillWidth
-            >
-              {links.map((link) => (
-                <Link
-                  target="_blank"
-                  style={{ padding: "var(--responsive-space-l)" }}
-                  key={link.href}
-                  href={link.href}
-                >
-                  <Flex fillWidth paddingY="8" gap="8" direction="column">
-                    <Flex fillWidth gap="12" alignItems="center">
-                      <Text
-                        variant="body-strong-m"
-                        onBackground="neutral-strong"
-                      >
-                        {link.title}
-                      </Text>
-                      <Icon size="s" name="arrowUpRight" />
-                    </Flex>
-                    <Text variant="body-default-s" onBackground="neutral-weak">
-                      {link.description}
-                    </Text>
-                  </Flex>
-                </Link>
-              ))}
-            </Grid>
-          </Flex>
-        </Flex>
-        <Flex
-          as="footer"
-          position="relative"
-          fillWidth
-          paddingX="l"
-          paddingY="m"
-          justifyContent="space-between"
-        >
-          <Text variant="body-default-s" onBackground="neutral-weak">
-            © 2024 Once UI,{" "}
-            <Link href="https://github.com/once-ui-system/nextjs-starter?tab=MIT-1-ov-file">
-              MIT License
-            </Link>
-          </Text>
-          <Flex gap="12">
-            <Button
-              href="https://github.com/once-ui-system/nextjs-starter"
-              prefixIcon="github"
-              size="s"
-              variant="tertiary"
-            >
-              GitHub
-            </Button>
-            <Button
-              href="https://discord.com/invite/5EyAQ4eNdS"
-              prefixIcon="discord"
-              size="s"
-              variant="tertiary"
-            >
-              Discord
-            </Button>
-          </Flex>
-        </Flex>
+        <div data-theme="dark" data-neutral="gray" data-brand="violet">
+          {/* Top Chart: Natural Gas Prices */}
+          <div>
+            <h2>Natural Gas Prices</h2>
+            {loadingPrice ? (
+              <p>Loading price data...</p>
+            ) : (
+              <Chart
+                data={priceData}
+                // title="Natural Gas Close Prices (Last 3 Years)"
+                fixedDateRange={fixedDateRange}
+              />
+            )}
+          </div>
+
+          {/* Dropdown for Selecting COT Column */}
+          <div style={{ marginTop: "20px" }}>
+            <label htmlFor="cot-column">Select COT Report: </label>
+            <Dropdown
+              options={dropdownOptions}
+              selectedOption={selectedColumn}
+              onOptionSelect={(option) => setSelectedColumn(option.value)} // Update selectedColumn on selection
+            />
+          </div>
+
+          {/* Bottom Chart: COT Data */}
+          <div style={{ marginTop: "20px" }}>
+            {/* <h2>COT Report Data</h2> */}
+            {loadingCot ? (
+              <p>Loading COT data...</p>
+            ) : (
+              <Chart
+                data={cotData}
+                // title={`COT Data: ${selectedColumn} (Last 3 Years)`}
+                fixedDateRange={fixedDateRange}
+              />
+            )}
+          </div>
+        </div>
       </Flex>
-    </>
+    </Flex>
   );
-}
+};
+
+export default NatGasPage;

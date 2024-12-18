@@ -45,13 +45,13 @@ const CoffeePage: React.FC = () => {
     const fetchPriceData = async () => {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/data/agri?ticker=COFFEE%20C%20-%20ICE%20FUTURES%20U.S.&column=KC=F_Close"
+          "http://127.0.0.1:5000/api/data/agri?ticker=COFFEE%20C%20-%20ICE%20FUTURES%20U.S.&column=YF_Price"
         );
         const data = await res.json();
 
         const formattedData: ChartData[] = data.map((item: any) => ({
           time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
-          value: item["KC=F_Close"],
+          value: item["YF_Price"],
         }));
 
         setPriceData(filterDataForLast3Years(formattedData));
@@ -138,7 +138,7 @@ const CoffeePage: React.FC = () => {
             ) : (
               <Chart
                 data={priceData}
-                title="Coffee Futures Prices (Last 3 Years)"
+                // title="Coffee Futures Prices (Last 3 Years)"
                 fixedDateRange={fixedDateRange}
               />
             )}
@@ -162,7 +162,7 @@ const CoffeePage: React.FC = () => {
             ) : (
               <Chart
                 data={cotData}
-                title={`COT Data: ${selectedColumn} (Last 3 Years)`}
+                // title={`COT Data: ${selectedColumn} (Last 3 Years)`}
                 fixedDateRange={fixedDateRange}
               />
             )}
