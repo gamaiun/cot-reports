@@ -4,6 +4,7 @@ data_cache/
 # Ignore all HDF5 files
 *.h5
 
+backend/firebase/serviceAccountKey.json
 
 # Node.js (Frontend)
 node_modules/
