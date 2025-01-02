@@ -1,0 +1,33 @@
+# Stage 1: Build stage (for compiling and building)
+FROM node:18-alpine AS build
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Install dependencies
+COPY package.json package-lock.json ./
+RUN npm install
+
+# Set execute permissions for all files in the .bin directory
+RUN chmod -R +x ./node_modules/.bin/
+
+# Copy the rest of the frontend files
+COPY . .
+
+# Build the Next.js application
+RUN npm run build
+
+# Stage 2: Production stage (only the necessary runtime dependencies)
+FROM node:18-alpine
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the built files from the build stage
+COPY --from=build /app /app
+
+# Expose the port for the frontend to listen on
+EXPOSE 3000
+
+# Run the app using the direct 'next start' command
+CMD ["./node_modules/.bin/next", "start", "-H", "0.0.0.0"]

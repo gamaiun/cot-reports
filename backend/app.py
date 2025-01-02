@@ -1,7 +1,12 @@
 
 import sys
 import os
+import firebase_admin
+import json
 
+from firebase_admin import credentials, storage
+import h5py
+import tempfile
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -11,9 +16,16 @@ import cot_reports as cot
 from pandas.tseries.offsets import BDay
 import base64
 from utils.currencies_and_indexes import load_currency_data
+import traceback
+import numpy as np
 
-# If you want to integrate with currencies_and_indexes.py, uncomment the line below
-# from currencies_and_indexes import load_currency_data
+# Initialize Firebase
+cred = credentials.Certificate("firebase/serviceAccountKey.json")
+firebase_admin.initialize_app(cred, {
+        'storageBucket': 'cotapp-5ad63.firebasestorage.app'
+
+})
+
 
 app = Flask(__name__)
 CORS(app)
@@ -444,6 +456,24 @@ def get_natgas_data():
         return jsonify(data)
     return jsonify({'error': 'Ticker or column not specified'}), 400
 
+
+# @app.route('/api/data/natgas', methods=['GET'])
+# def get_natgas_data():
+#     try:
+#         # Path to your `.h5` file
+#         file_path = "./data_cache/natgas_data.h5"
+#         with h5py.File(file_path, 'r') as h5file:
+#             dataset = h5file['natgas/axis1_label1'][:]  # Replace with the correct dataset
+#             data = dataset.tolist()  # Convert to list for JSON serialization
+
+#         # Return the extracted data
+#         return jsonify({"data": data})
+
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+
+
 @app.route('/api/options/natgas', methods=['GET'])
 def get_natgas_options():
     tickers = gas_multiindex.index.get_level_values('ticker').unique().tolist()
@@ -474,9 +504,66 @@ def get_agri_data():
             return jsonify({'error': 'Data not found for the specified ticker or column'}), 404
     return jsonify({'error': 'Ticker or column not specified'}), 400
 
+######### Firebase testing:
+@app.route('/upload-h5-files', methods=['GET', 'POST'])
+def upload_h5_files():
+    if request.method == 'GET':
+        return {"message": "Please use a POST request to upload files."}
+    
+    # Directory containing the .h5 files
+    data_cache_dir = "data_cache"
+    
+    # Firebase Storage
+    bucket = storage.bucket()
+
+    # Upload all .h5 files in the directory
+    for file_name in os.listdir(data_cache_dir):
+        if file_name.endswith(".h5"):
+            local_file_path = os.path.join(data_cache_dir, file_name)
+            blob = bucket.blob(f"data/{file_name}")  # Store in the "data" folder in Firebase Storage
+            blob.upload_from_filename(local_file_path)
+            print(f"Uploaded {file_name} to Firebase Storage.")
+    
+    return {"message": "All .h5 files uploaded successfully!"}
+
+
+@app.route('/get-h5-file/<filename>', methods=['GET'])
+def get_h5_file(filename):
+    try:
+        # Firebase Storage
+        bucket = storage.bucket()
+        blob = bucket.blob(f"data/{filename}")
+
+        # Download file content as binary
+        file_content = blob.download_as_bytes()
+        return file_content, 200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': f'attachment; filename={filename}'
+        }
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+
+
+# @app.route('/get-file', methods=['GET'])
+# def get_file():
+#     bucket = storage.bucket()
+#     blob = bucket.blob("test/test_file.txt")
+#     file_content = blob.download_as_text()  # Download file as text
+#     return file_content
+
+
+@app.route('/upload', methods=['GET'])
+def upload_file():
+    bucket = storage.bucket()
+    blob = bucket.blob("test/test_file.txt")  # Path in Firebase Storage
+    blob.upload_from_string("This is a test file.", content_type="text/plain")
+    return "File uploaded to Firebase Storage."
+
 if __name__ == "__main__":
     # Load data before running the app
     initialize_data()
 
     # Run the Flask app
-    app.run(debug=False)
+    app.run(debug=True)
+

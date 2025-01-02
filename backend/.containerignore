@@ -1,0 +1,18 @@
+# Exclude all files in the 'node_modules' folder
+
+node_modules/
+
+# Exclude all .git files
+
+.git/
+
+# Exclude all temporary files
+
+_.log
+_.tmp
+\*.swp
+
+# Exclude Dockerfile and containerignore file
+
+Containerfile
+.containerignore
