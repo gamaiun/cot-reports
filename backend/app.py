@@ -312,7 +312,7 @@ def load_data():
 
 # Initial data load
 agri_multiindex, gas_multiindex = load_data()
-# currency_combined = pd.DataFrame()  # Initialize as empty globally
+currency_combined = pd.DataFrame()  # Initialize as empty globally
 
 def initialize_data():
     global currency_combined
