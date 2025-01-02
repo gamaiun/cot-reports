@@ -10,16 +10,12 @@ COPY requirements.txt /app/
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
+# Copy the rest of the application, including your custom environment file
 COPY . /app
 
-# Make port 5000 available to the outside world
-EXPOSE 5000
-
-# Define environment variables
+# Ensure Flask loads the correct environment variables
 ENV FLASK_APP=app.py
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_ENV=production
 
-# Run the Flask application
-CMD ["flask", "run"]
+# Use the PORT environment variable set by Cloud Run, or default to 8080
+CMD ["sh", "-c", "flask run --port=${PORT:-8080}"]

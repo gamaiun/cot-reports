@@ -45,7 +45,7 @@ const WheatHRWPage: React.FC = () => {
     const fetchPriceData = async () => {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/data/agri?ticker=WHEAT-HRW%20-%20CHICAGO%20BOARD%20OF%20TRADE&column=YF_Price"
+          `${process.env.NEXT_PUBLIC_API_URL}/api/data/agri?ticker=WHEAT-HRW%20-%20CHICAGO%20BOARD%20OF%20TRADE&column=YF_Price`
         );
         const data = await res.json();
 
@@ -71,7 +71,9 @@ const WheatHRWPage: React.FC = () => {
       try {
         setLoadingCot(true);
         const res = await fetch(
-          `http://127.0.0.1:5000/api/data/agri?ticker=WHEAT-HRW%20-%20CHICAGO%20BOARD%20OF%20TRADE&column=${encodeURIComponent(
+          `${
+            process.env.NEXT_PUBLIC_API_URL
+          }/api/data/agri?ticker=WHEAT-HRW%20-%20CHICAGO%20BOARD%20OF%20TRADE&column=${encodeURIComponent(
             selectedColumn
           )}`
         );
@@ -97,7 +99,9 @@ const WheatHRWPage: React.FC = () => {
   useEffect(() => {
     const fetchCotColumns = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:5000/api/options/agri");
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/options/agri`
+        );
         const data = await res.json();
         setCotColumns(data.columns || []);
       } catch (error) {

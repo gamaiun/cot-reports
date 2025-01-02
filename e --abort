@@ -1,0 +1,17 @@
+[33mcommit 6d7da5c231e6a185863baecd4e2e505a3b4fafc0[m[33m ([m[1;36mHEAD[m[33m)[m
+Author: Vadim Antonovich <76610711+gamaiun@users.noreply.github.com>
+Date:   Mon Dec 16 10:57:06 2024 +0200
+
+    Initial commit
+
+backend/app.py
+backend/requirements.txt
+backend/utils/currencies_and_indexes.py
+frontend/package-lock.json
+frontend/package.json
+frontend/src/app/cad/page.tsx
+frontend/src/app/euro/page.tsx
+frontend/src/app/gbp/page.tsx
+frontend/src/app/yen/page.tsx
+frontend/src/once-ui/components/Chart.tsx
+frontend/src/once-ui/modules/layout/Sidebar.tsx

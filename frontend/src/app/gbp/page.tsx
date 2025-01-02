@@ -38,7 +38,7 @@ const ChartingPage: React.FC = () => {
       try {
         setLoadingPrice(true);
         const res = await fetch(
-          "http://127.0.0.1:5000/api/data/currency_prices?ticker=BRITISH%20POUND%20STERLING%20-%20CHICAGO%20MERCANTILE%20EXCHANGE"
+          `${process.env.NEXT_PUBLIC_API_URL}/api/data/currency_prices?ticker=BRITISH%20POUND%20STERLING%20-%20CHICAGO%20MERCANTILE%20EXCHANGE`
         );
         const data = await res.json();
 
@@ -65,7 +65,9 @@ const ChartingPage: React.FC = () => {
       try {
         setLoadingCot(true);
         const res = await fetch(
-          `http://127.0.0.1:5000/api/data/currency_combined?ticker=BRITISH%20POUND%20STERLING%20-%20CHICAGO%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
+          `${
+            process.env.NEXT_PUBLIC_API_URL
+          }/api/data/currency_combined?ticker=BRITISH%20POUND%20STERLING%20-%20CHICAGO%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
             selectedColumn
           )}`
         );
@@ -95,7 +97,7 @@ const ChartingPage: React.FC = () => {
     const fetchCotColumns = async () => {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/options/currency_combined"
+          `${process.env.NEXT_PUBLIC_API_URL}/api/options/currency_combined`
         );
         const data = await res.json();
         setCotColumns(data.columns || []);

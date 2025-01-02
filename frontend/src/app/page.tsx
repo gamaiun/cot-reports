@@ -44,7 +44,7 @@ const NatGasPage: React.FC = () => {
     const fetchPriceData = async () => {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close"
+          `${process.env.NEXT_PUBLIC_API_URL}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close`
         );
         const data = await res.json();
 
@@ -70,7 +70,9 @@ const NatGasPage: React.FC = () => {
       try {
         setLoadingCot(true);
         const res = await fetch(
-          `http://127.0.0.1:5000/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
+          `${
+            process.env.NEXT_PUBLIC_API_URL
+          }/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
             selectedColumn
           )}`
         );
@@ -96,7 +98,9 @@ const NatGasPage: React.FC = () => {
   useEffect(() => {
     const fetchCotColumns = async () => {
       try {
-        const res = await fetch("http://127.0.0.1:5000/api/options/natgas");
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/options/natgas`
+        );
         const data = await res.json();
         setCotColumns(data.columns || []);
       } catch (error) {

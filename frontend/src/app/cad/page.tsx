@@ -36,7 +36,7 @@ const CADChartingPage: React.FC = () => {
       try {
         setLoadingPrice(true);
         const res = await fetch(
-          "http://127.0.0.1:5000/api/data/currency_prices?ticker=CANADIAN%20DOLLAR%20-%20CHICAGO%20MERCANTILE%20EXCHANGE"
+          `${process.env.NEXT_PUBLIC_API_URL}/api/data/currency_prices?ticker=CANADIAN%20DOLLAR%20-%20CHICAGO%20MERCANTILE%20EXCHANGE`
         );
         const data = await res.json();
 
@@ -61,7 +61,9 @@ const CADChartingPage: React.FC = () => {
       try {
         setLoadingCot(true);
         const res = await fetch(
-          `http://127.0.0.1:5000/api/data/currency_combined?ticker=CANADIAN%20DOLLAR%20-%20CHICAGO%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
+          `${
+            process.env.NEXT_PUBLIC_API_URL
+          }/api/data/currency_combined?ticker=CANADIAN%20DOLLAR%20-%20CHICAGO%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
             selectedColumn
           )}`
         );
@@ -87,7 +89,7 @@ const CADChartingPage: React.FC = () => {
     const fetchCotColumns = async () => {
       try {
         const res = await fetch(
-          "http://127.0.0.1:5000/api/options/currency_combined"
+          `${process.env.NEXT_PUBLIC_API_URL}/api/options/currency_combined`
         );
         const data = await res.json();
         setCotColumns(data.columns || []);
