@@ -29,7 +29,8 @@ firebase_admin.initialize_app(cred, {
 
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": ["https://www.byotr.com"]}})
+
 
 data_cache_dir = "data_cache"
 os.makedirs(data_cache_dir, exist_ok=True)
@@ -553,6 +554,16 @@ def get_h5_file(filename):
         }
     except Exception as e:
         return {"error": str(e)}, 500
+
+
+@app.after_request
+def add_cors_headers(response):
+    # Dynamically set the CORS allowed origin
+    allowed_origin = os.getenv("CORS_ALLOWED_ORIGIN", "*")
+    response.headers["Access-Control-Allow-Origin"] = allowed_origin
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
 
 
 
