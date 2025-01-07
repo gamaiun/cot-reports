@@ -14,8 +14,9 @@ const CoffeePage: React.FC = () => {
   const [priceData, setPriceData] = useState<ChartData[]>([]); // Data for price chart
   const [cotData, setCotData] = useState<ChartData[]>([]); // Data for COT chart
   const [cotColumns, setCotColumns] = useState<string[]>([]); // Dropdown options
-  const [selectedColumn, setSelectedColumn] =
-    useState<string>("Noncommercial Long"); // Default column
+  const [selectedColumn, setSelectedColumn] = useState<string>(
+    "Net Traders Commercial"
+  ); // Default column
   const [loadingPrice, setLoadingPrice] = useState(true);
   const [loadingCot, setLoadingCot] = useState(true);
 

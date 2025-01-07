@@ -18,6 +18,7 @@ import base64
 from utils.currencies_and_indexes import load_currency_data
 import traceback
 import numpy as np
+from datetime import datetime
 
 # Initialize Firebase
 cred = credentials.Certificate("firebase/serviceAccountKey.json")
@@ -195,6 +196,21 @@ renaming_dict  ={
     'Concentration-Net LT =8 TDR-Short (All)': 'Concentration-Net 8 TDR-Short'
 }
 
+columns_to_drop_2 = ['Noncommercial Long',
+       'Noncommercial Short', 'Commercial Long', 'Commercial Short',
+       ' Total Reportable Positions-Long (All)', 'Reportable Short',
+       'Nonreportable Positions-Long (All)',
+       'Nonreportable Positions-Short (All)', '%OI-Noncommercial-Long',
+       '%OI-Noncommercial-Short', '%OI-Commercial-Long',
+       '%OI-Commercial-Short', '%OI-Reportable-Long', '%OI-Reportable-Short',
+       '%OI-Nonreportable-Long', '%OI-Nonreportable-Short',
+       'Traders-Noncommercial-Long', 'Traders-Noncommercial-Short',
+       'Traders-Commercial-Long', 'Traders-Commercial-Short',
+       'Traders-Total Reportable-Long', 'Traders-Total Reportable-Short',
+       'Concentration 4 TDR-Long', 'Concentration 4 TDR-Short',
+       'Concentration 8 TDR-Long', 'Concentration 8 TDR-Short',
+      ]
+
 def download_gas_prices():
     ticker = "NG=F"
     start_date = "2020-01-01"
@@ -239,9 +255,10 @@ def download_agri_prices():
     
     
 def load_data():
+    current_year = int(datetime.now().year)
     current_date_str = pd.Timestamp.now().strftime("%Y%m%d")
-    agri_data_file = os.path.join(data_cache_dir, f"agri_data_{current_date_str}.h5")
-    natgas_data_file = os.path.join(data_cache_dir, f"natgas_data_{current_date_str}.h5")
+    agri_data_file = os.path.join(data_cache_dir, "agri_data.h5")
+    natgas_data_file = os.path.join(data_cache_dir, "natgas_data.h5")
 
     if os.path.exists(agri_data_file) and os.path.exists(natgas_data_file):
         agri_multiindex = pd.read_hdf(agri_data_file, key='agri')
@@ -249,7 +266,7 @@ def load_data():
         print("Loaded cached agricultural and natural gas data from HDF5 files.")
     else:
         # Load and preprocess COT data
-        df = pd.concat([pd.DataFrame(cot.cot_year(i, cot_report_type='legacy_futopt')) for i in range(2020, 2025)], ignore_index=False)
+        df = pd.concat([pd.DataFrame(cot.cot_year(i, cot_report_type='legacy_futopt')) for i in range(2020, current_year)], ignore_index=False)
 
         ### Agricultural Data Processing ###
         agri_df = df[df['Market and Exchange Names'].isin(agri_cots_list)].copy()
@@ -273,6 +290,7 @@ def load_data():
         agri_multiindex['Net Traders Noncommercial'] = agri_multiindex['Traders-Noncommercial-Long'] - agri_multiindex['Traders-Noncommercial-Short']
         agri_multiindex['Net Traders Commercial'] = agri_multiindex['Traders-Commercial-Long'] - agri_multiindex['Traders-Commercial-Short']
         agri_multiindex['Net Commercial'] = agri_multiindex['Commercial Long'] - agri_multiindex['Commercial Short']
+        agri_multiindex.drop(columns=columns_to_drop_2, inplace=True)
 
         ### Gas Data Processing ###
         gas_df = df[df['Market and Exchange Names'].isin(gas_cots)].copy()
@@ -296,6 +314,7 @@ def load_data():
         gas_multiindex['Net Traders Noncommercial'] = gas_multiindex['Traders-Noncommercial-Long'] - gas_multiindex['Traders-Noncommercial-Short']
         gas_multiindex['Net Traders Commercial'] = gas_multiindex['Traders-Commercial-Long'] - gas_multiindex['Traders-Commercial-Short']
         gas_multiindex['Net Commercial'] = gas_multiindex['Commercial Long'] - gas_multiindex['Commercial Short']
+        gas_multiindex.drop(columns=columns_to_drop_2, inplace=True)
 
         # Save processed data to cache
         agri_multiindex.to_hdf(agri_data_file, key='agri', mode='w')
@@ -318,7 +337,9 @@ def initialize_data():
     global currency_combined
     print("Initializing currency data...")
     try:
-        currency_combined = load_currency_data()  # Load data
+        currency_combined = load_currency_data()
+        print("Currency Data Sample:")
+        print(currency_combined.head())
     except Exception as e:
         print("Error initializing currency data:", e)
         currency_combined = pd.DataFrame()  # Fallback to empty DataFrame
@@ -411,6 +432,12 @@ def get_currency_prices():
 
 @app.route("/api/data/currency_combined", methods=["GET"])
 def get_currency_combined_data():
+    if currency_combined.empty:
+        return jsonify({'error': 'Currency data is not loaded'}), 500
+
+    if 'ticker' not in currency_combined.index.names:
+        return jsonify({'error': "'ticker' is not part of the DataFrame index"}), 500
+
     ticker = request.args.get("ticker")
     column = request.args.get("column")
 
@@ -455,22 +482,6 @@ def get_natgas_data():
         data = filtered_data.reset_index()[['date2', column]].to_dict(orient='records')
         return jsonify(data)
     return jsonify({'error': 'Ticker or column not specified'}), 400
-
-
-# @app.route('/api/data/natgas', methods=['GET'])
-# def get_natgas_data():
-#     try:
-#         # Path to your `.h5` file
-#         file_path = "./data_cache/natgas_data.h5"
-#         with h5py.File(file_path, 'r') as h5file:
-#             dataset = h5file['natgas/axis1_label1'][:]  # Replace with the correct dataset
-#             data = dataset.tolist()  # Convert to list for JSON serialization
-
-#         # Return the extracted data
-#         return jsonify({"data": data})
-
-#     except Exception as e:
-#         return jsonify({"error": str(e)}), 500
 
 
 
@@ -543,14 +554,6 @@ def get_h5_file(filename):
     except Exception as e:
         return {"error": str(e)}, 500
 
-
-
-# @app.route('/get-file', methods=['GET'])
-# def get_file():
-#     bucket = storage.bucket()
-#     blob = bucket.blob("test/test_file.txt")
-#     file_content = blob.download_as_text()  # Download file as text
-#     return file_content
 
 
 @app.route('/upload', methods=['GET'])
