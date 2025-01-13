@@ -49,25 +49,15 @@ export async function generateMetadata(): Promise<Metadata> {
   const metadataBase = host ? new URL(`https://${host}`) : undefined;
 
   return {
-    title: meta.title,
-    description: meta.description,
+    title: "COT Reports for Humans",
+    description:
+      "Discover powerful insights into financial markets with our comprehensive Commitments of Traders (COT) reports and historical price analysis. Track agricultural commodities, natural gas, and currencies with real-time charts, advanced analytics, and user-friendly tools designed for traders, analysts, and market enthusiasts. Stay ahead in the dynamic world of trading.",
     openGraph: {
-      title: og.title,
-      description: og.description,
+      title: "COT Reports for Humans",
+      description:
+        "Discover powerful insights into financial markets with our comprehensive Commitments of Traders (COT) reports and historical price analysis. Track agricultural commodities, natural gas, and currencies with real-time charts, advanced analytics, and user-friendly tools designed for traders, analysts, and market enthusiasts. Stay ahead in the dynamic world of trading.",
       url: "https://" + baseURL,
-      type: og.type as
-        | "website"
-        | "article"
-        | "book"
-        | "profile"
-        | "music.song"
-        | "music.album"
-        | "music.playlist"
-        | "music.radio_station"
-        | "video.movie"
-        | "video.episode"
-        | "video.tv_show"
-        | "video.other",
+      type: og.type as "website",
     },
     metadataBase,
   };

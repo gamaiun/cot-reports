@@ -186,7 +186,7 @@ import { Flex } from "@/once-ui/components/Flex";
 import { Dropdown, DropdownOptions } from "@/once-ui/components";
 import WelcomeScreen from "../components/WelcomeScreen"; // Adjust the import path
 import { Sidebar } from "@/once-ui/modules";
-import "./styles.css";
+import Loader from "../components/SpinningWheel";
 
 interface ChartData {
   time: string; // ISO format (yyyy-mm-dd)
@@ -234,6 +234,47 @@ const NatGasPage: React.FC = () => {
   useEffect(() => {
     setShowWelcome(true); // Always show the welcome popup
   }, []);
+
+  // Fetch data concurrently
+  // useEffect(() => {
+  //   const fetchData = async () => {
+  //     try {
+  //       setShowLoader(true); // Show loader while fetching data
+
+  //       const [priceRes, cotColumnsRes] = await Promise.all([
+  //         fetch(
+  //           `${process.env.NEXT_PUBLIC_API_URL}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close`
+  //         ),
+  //         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/options/natgas`),
+  //       ]);
+
+  //       const priceData = await priceRes.json();
+  //       const cotColumnsData = await cotColumnsRes.json();
+
+  //       const formattedPriceData: ChartData[] = priceData.map((item: any) => ({
+  //         time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
+  //         value: item.NG_Close,
+  //       }));
+
+  //       setState((prevState) => ({
+  //         ...prevState,
+  //         priceData: filterDataForLast3Years(formattedPriceData),
+  //         cotColumns: cotColumnsData.columns || [],
+  //         loadingPrice: false,
+  //       }));
+  //     } catch (error) {
+  //       console.error("Error fetching data:", error);
+  //       setState((prevState) => ({
+  //         ...prevState,
+  //         loadingPrice: false,
+  //       }));
+  //     } finally {
+  //       setShowLoader(false); // Hide loader after fetching
+  //     }
+  //   };
+
+  //   fetchData();
+  // }, []);
 
   // Fetch data concurrently
   useEffect(() => {
@@ -324,11 +365,15 @@ const NatGasPage: React.FC = () => {
       {showWelcome && <WelcomeScreen onClose={() => setShowWelcome(false)} />}
 
       {showLoader && (
-        <div style={{ textAlign: "center", marginTop: "50px" }}>
-          <div className="loader"></div>
-          <p style={{ marginTop: "10px", fontSize: "18px", color: "#514b82" }}>
-            Loading data...
-          </p>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100vh",
+          }}
+        >
+          <Loader />
         </div>
       )}
 
