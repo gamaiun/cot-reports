@@ -5,8 +5,8 @@
 // import { Flex } from "@/once-ui/components/Flex";
 // import { Dropdown, DropdownOptions } from "@/once-ui/components";
 // import WelcomeScreen from "../components/WelcomeScreen"; // Adjust the import path
-
 // import { Sidebar } from "@/once-ui/modules";
+
 // interface ChartData {
 //   time: string; // ISO format (yyyy-mm-dd)
 //   value: number;
@@ -14,19 +14,24 @@
 
 // const NatGasPage: React.FC = () => {
 //   const [showWelcome, setShowWelcome] = useState(false);
-//   const [priceData, setPriceData] = useState<ChartData[]>([]); // Data for price chart
-//   const [cotData, setCotData] = useState<ChartData[]>([]); // Data for COT chart
-//   const [cotColumns, setCotColumns] = useState<string[]>([]); // Dropdown options
-//   const [selectedColumn, setSelectedColumn] =
-//     useState<string>("Noncommercial Long"); // Default column
-//   const [loadingPrice, setLoadingPrice] = useState(true);
-//   const [loadingCot, setLoadingCot] = useState(true);
+//   const [state, setState] = useState({
+//     priceData: [] as ChartData[],
+//     cotData: [] as ChartData[],
+//     cotColumns: [] as string[],
+//     loadingPrice: true,
+//     loadingCot: true,
+//   });
+
+//   const [selectedColumn, setSelectedColumn] = useState<string>(
+//     "Net Traders Commercial"
+//   ); // Default column
 
 //   // Map cotColumns to DropdownOptions
-//   const dropdownOptions: DropdownOptions[] = cotColumns.map((column) => ({
+//   const dropdownOptions: DropdownOptions[] = state.cotColumns.map((column) => ({
 //     label: column,
 //     value: column,
 //   }));
+
 //   // Define fixed date range for the last 3 years
 //   const fixedDateRange = {
 //     start: new Date(new Date().getFullYear() - 3, 0, 1)
@@ -42,141 +47,132 @@
 //         item.time >= fixedDateRange.start && item.time <= fixedDateRange.end
 //     );
 
-//   // Fetch natural gas prices
+//   // Show the welcome screen every time the user visits
 //   useEffect(() => {
+//     setShowWelcome(true); // Always show the welcome popup
+//   }, []);
 
-//     const fetchPriceData = async () => {
+//   // Fetch data concurrently
+//   useEffect(() => {
+//     const fetchData = async () => {
 //       try {
-//         const res = await fetch(
-//           `${process.env.NEXT_PUBLIC_API_URL}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close`
-//         );
-//         const data = await res.json();
+//         const [priceRes, cotColumnsRes] = await Promise.all([
+//           fetch(
+//             `${process.env.NEXT_PUBLIC_API_URL}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close`
+//           ),
+//           fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/options/natgas`),
+//         ]);
 
-//         const formattedData: ChartData[] = data.map((item: any) => ({
+//         const priceData = await priceRes.json();
+//         const cotColumnsData = await cotColumnsRes.json();
+
+//         const formattedPriceData: ChartData[] = priceData.map((item: any) => ({
 //           time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
 //           value: item.NG_Close,
 //         }));
 
-//         setPriceData(filterDataForLast3Years(formattedData));
-//         setLoadingPrice(false);
+//         setState((prevState) => ({
+//           ...prevState,
+//           priceData: filterDataForLast3Years(formattedPriceData),
+//           cotColumns: cotColumnsData.columns || [],
+//           loadingPrice: false,
+//         }));
 //       } catch (error) {
-//         console.error("Error fetching price data:", error);
-//         setLoadingPrice(false);
+//         console.error("Error fetching data:", error);
+//         setState((prevState) => ({
+//           ...prevState,
+//           loadingPrice: false,
+//         }));
 //       }
 //     };
 
-//     fetchPriceData();
+//     fetchData();
 //   }, []);
 
-//   // Fetch COT data for the selected column
 //   useEffect(() => {
 //     const fetchCotData = async () => {
 //       try {
-//         setLoadingCot(true);
-//         const res = await fetch(
-//           `${
-//             process.env.NEXT_PUBLIC_API_URL
-//           }/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
-//             selectedColumn
-//           )}`
-//         );
-//         const data = await res.json();
+//         const apiUrl =
+//           process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"; // Default to localhost if not set
+//         const endpoint = `${apiUrl}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
+//           selectedColumn
+//         )}`;
 
+//         console.log("Fetching from URL:", endpoint); // Log the actual URL for debugging
+
+//         const res = await fetch(endpoint);
+//         if (!res.ok) {
+//           throw new Error(`HTTP error! Status: ${res.status}`);
+//         }
+
+//         const data = await res.json();
 //         const formattedData: ChartData[] = data.map((item: any) => ({
-//           time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
+//           time: new Date(item.date2).toISOString().split("T")[0],
 //           value: item[selectedColumn],
 //         }));
 
-//         setCotData(filterDataForLast3Years(formattedData));
-//         setLoadingCot(false);
+//         setState((prevState) => ({
+//           ...prevState,
+//           cotData: filterDataForLast3Years(formattedData),
+//           loadingCot: false,
+//         }));
 //       } catch (error) {
 //         console.error("Error fetching COT data:", error);
-//         setLoadingCot(false);
+//         setState((prevState) => ({
+//           ...prevState,
+//           loadingCot: false,
+//         }));
 //       }
 //     };
 
 //     fetchCotData();
 //   }, [selectedColumn]);
 
-//   // Fetch dropdown options for COT columns
-//   useEffect(() => {
-//     const fetchCotColumns = async () => {
-//       try {
-//         const res = await fetch(
-//           `${process.env.NEXT_PUBLIC_API_URL}/api/options/natgas`
-//         );
-//         const data = await res.json();
-//         setCotColumns(data.columns || []);
-//       } catch (error) {
-//         console.error("Error fetching COT columns:", error);
-//       }
-//     };
-
-//     fetchCotColumns();
-//   }, []);
-
 //   return (
-//     <Flex
-//       fillWidth
-//       paddingTop="xl"
-//       paddingLeft="xl"
-//       paddingRight="xl"
-//       paddingBottom="xl"
-//       direction="row"
-//       flex={1}
-//     >
-//       {/* Sidebar: Assign a fixed width */}
-//       <Sidebar
-//       // style={{ flex: "0 0 300px", maxWidth: "300px", width: "300px" }}
-//       />
-
-//       {/* Main Content: Allow it to take the remaining space */}
+//     <>
+//       {showWelcome && <WelcomeScreen onClose={() => setShowWelcome(false)} />}
 //       <Flex
-//         direction="column"
-//         flex={1} // Take the remaining space
-//         paddingLeft="l"
+//         fillWidth
+//         paddingTop="xl"
+//         paddingLeft="xl"
+//         paddingRight="xl"
+//         paddingBottom="xl"
+//         direction="row"
+//         flex={1}
 //       >
-//         <div data-theme="dark" data-neutral="gray" data-brand="violet">
-//           {/* Top Chart: Natural Gas Prices */}
-//           <div>
-//             <h2>Natural Gas Prices</h2>
-//             {loadingPrice ? (
-//               <p>Loading price data...</p>
-//             ) : (
-//               <Chart
-//                 data={priceData}
-//                 // title="Natural Gas Close Prices (Last 3 Years)"
-//                 fixedDateRange={fixedDateRange}
-//               />
-//             )}
-//           </div>
+//         <Sidebar />
 
-//           {/* Dropdown for Selecting COT Column */}
-//           <div style={{ marginTop: "20px" }}>
-//             <label htmlFor="cot-column">Select COT Report: </label>
-//             <Dropdown
-//               options={dropdownOptions}
-//               selectedOption={selectedColumn}
-//               onOptionSelect={(option) => setSelectedColumn(option.value)} // Update selectedColumn on selection
-//             />
-//           </div>
+//         <Flex direction="column" flex={1} paddingLeft="l">
+//           <div data-theme="dark" data-neutral="gray" data-brand="violet">
+//             <div>
+//               <h2>Natural Gas Prices</h2>
+//               {state.loadingPrice ? (
+//                 <p>Loading price data...</p>
+//               ) : (
+//                 <Chart data={state.priceData} fixedDateRange={fixedDateRange} />
+//               )}
+//             </div>
 
-//           {/* Bottom Chart: COT Data */}
-//           <div style={{ marginTop: "20px" }}>
-//             {/* <h2>COT Report Data</h2> */}
-//             {loadingCot ? (
-//               <p>Loading COT data...</p>
-//             ) : (
-//               <Chart
-//                 data={cotData}
-//                 // title={`COT Data: ${selectedColumn} (Last 3 Years)`}
-//                 fixedDateRange={fixedDateRange}
+//             <div style={{ marginTop: "20px" }}>
+//               <label htmlFor="cot-column">Select COT Report: </label>
+//               <Dropdown
+//                 options={dropdownOptions}
+//                 selectedOption={selectedColumn}
+//                 onOptionSelect={(option) => setSelectedColumn(option.value)}
 //               />
-//             )}
+//             </div>
+
+//             <div style={{ marginTop: "20px" }}>
+//               {state.loadingCot ? (
+//                 <p>Loading COT data...</p>
+//               ) : (
+//                 <Chart data={state.cotData} fixedDateRange={fixedDateRange} />
+//               )}
+//             </div>
 //           </div>
-//         </div>
+//         </Flex>
 //       </Flex>
-//     </Flex>
+//     </>
 //   );
 // };
 
@@ -190,6 +186,7 @@ import { Flex } from "@/once-ui/components/Flex";
 import { Dropdown, DropdownOptions } from "@/once-ui/components";
 import WelcomeScreen from "../components/WelcomeScreen"; // Adjust the import path
 import { Sidebar } from "@/once-ui/modules";
+import "./styles.css";
 
 interface ChartData {
   time: string; // ISO format (yyyy-mm-dd)
@@ -198,17 +195,22 @@ interface ChartData {
 
 const NatGasPage: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState(false);
-  const [priceData, setPriceData] = useState<ChartData[]>([]); // Data for price chart
-  const [cotData, setCotData] = useState<ChartData[]>([]); // Data for COT chart
-  const [cotColumns, setCotColumns] = useState<string[]>([]); // Dropdown options
+  const [state, setState] = useState({
+    priceData: [] as ChartData[],
+    cotData: [] as ChartData[],
+    cotColumns: [] as string[],
+    loadingPrice: true,
+    loadingCot: true,
+  });
+
   const [selectedColumn, setSelectedColumn] = useState<string>(
     "Net Traders Commercial"
   ); // Default column
-  const [loadingPrice, setLoadingPrice] = useState(true);
-  const [loadingCot, setLoadingCot] = useState(true);
+
+  const [showLoader, setShowLoader] = useState(false); // Loader state
 
   // Map cotColumns to DropdownOptions
-  const dropdownOptions: DropdownOptions[] = cotColumns.map((column) => ({
+  const dropdownOptions: DropdownOptions[] = state.cotColumns.map((column) => ({
     label: column,
     value: column,
   }));
@@ -228,144 +230,154 @@ const NatGasPage: React.FC = () => {
         item.time >= fixedDateRange.start && item.time <= fixedDateRange.end
     );
 
-  // Show the welcome screen for first-time visitors
+  // Show the welcome screen every time the user visits
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      setShowWelcome(true); // Always show in development mode
-    } else {
-      const isFirstVisit = localStorage.getItem("visited") !== "true";
-      if (isFirstVisit) {
-        setShowWelcome(true);
-        localStorage.setItem("visited", "true");
-      }
-    }
+    setShowWelcome(true); // Always show the welcome popup
   }, []);
 
-  // Fetch natural gas prices
+  // Fetch data concurrently
   useEffect(() => {
-    const fetchPriceData = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close`
-        );
-        const data = await res.json();
+        setShowLoader(true); // Show loader while fetching data
 
-        const formattedData: ChartData[] = data.map((item: any) => ({
+        const [priceRes, cotColumnsRes] = await Promise.all([
+          fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=NG_Close`
+          ),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/options/natgas`),
+        ]);
+
+        const priceData = await priceRes.json();
+        const cotColumnsData = await cotColumnsRes.json();
+
+        const formattedPriceData: ChartData[] = priceData.map((item: any) => ({
           time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
           value: item.NG_Close,
         }));
 
-        setPriceData(filterDataForLast3Years(formattedData));
-        setLoadingPrice(false);
+        setState((prevState) => ({
+          ...prevState,
+          priceData: filterDataForLast3Years(formattedPriceData),
+          cotColumns: cotColumnsData.columns || [],
+          loadingPrice: false,
+        }));
       } catch (error) {
-        console.error("Error fetching price data:", error);
-        setLoadingPrice(false);
+        console.error("Error fetching data:", error);
+        setState((prevState) => ({
+          ...prevState,
+          loadingPrice: false,
+        }));
+      } finally {
+        setShowLoader(false); // Hide loader after fetching
       }
     };
 
-    fetchPriceData();
+    fetchData();
   }, []);
 
-  // Fetch COT data for the selected column
   useEffect(() => {
     const fetchCotData = async () => {
       try {
-        setLoadingCot(true);
-        const res = await fetch(
-          `${
-            process.env.NEXT_PUBLIC_API_URL
-          }/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
-            selectedColumn
-          )}`
-        );
-        const data = await res.json();
+        setShowLoader(true); // Show loader while fetching COT data
 
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"; // Default to localhost if not set
+        const endpoint = `${apiUrl}/api/data/natgas?ticker=HENRY%20HUB%20-%20NEW%20YORK%20MERCANTILE%20EXCHANGE&column=${encodeURIComponent(
+          selectedColumn
+        )}`;
+
+        console.log("Fetching from URL:", endpoint); // Log the actual URL for debugging
+
+        const res = await fetch(endpoint);
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+
+        const data = await res.json();
         const formattedData: ChartData[] = data.map((item: any) => ({
-          time: new Date(item.date2).toISOString().split("T")[0], // Ensure yyyy-mm-dd format
+          time: new Date(item.date2).toISOString().split("T")[0],
           value: item[selectedColumn],
         }));
 
-        setCotData(filterDataForLast3Years(formattedData));
-        setLoadingCot(false);
+        setState((prevState) => ({
+          ...prevState,
+          cotData: filterDataForLast3Years(formattedData),
+          loadingCot: false,
+        }));
       } catch (error) {
         console.error("Error fetching COT data:", error);
-        setLoadingCot(false);
+        setState((prevState) => ({
+          ...prevState,
+          loadingCot: false,
+        }));
+      } finally {
+        setShowLoader(false); // Hide loader after fetching
       }
     };
 
     fetchCotData();
   }, [selectedColumn]);
 
-  // Fetch dropdown options for COT columns
-  useEffect(() => {
-    const fetchCotColumns = async () => {
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/options/natgas`
-        );
-        const data = await res.json();
-        setCotColumns(data.columns || []);
-      } catch (error) {
-        console.error("Error fetching COT columns:", error);
-      }
-    };
-
-    fetchCotColumns();
-  }, []);
-
   return (
     <>
       {showWelcome && <WelcomeScreen onClose={() => setShowWelcome(false)} />}
-      <Flex
-        fillWidth
-        paddingTop="xl"
-        paddingLeft="xl"
-        paddingRight="xl"
-        paddingBottom="xl"
-        direction="row"
-        flex={1}
-      >
-        {/* Sidebar: Assign a fixed width */}
-        <Sidebar />
 
-        {/* Main Content: Allow it to take the remaining space */}
+      {showLoader && (
+        <div style={{ textAlign: "center", marginTop: "50px" }}>
+          <div className="loader"></div>
+          <p style={{ marginTop: "10px", fontSize: "18px", color: "#514b82" }}>
+            Loading data...
+          </p>
+        </div>
+      )}
+
+      {!showLoader && (
         <Flex
-          direction="column"
-          flex={1} // Take the remaining space
-          paddingLeft="l"
+          fillWidth
+          paddingTop="xl"
+          paddingLeft="xl"
+          paddingRight="xl"
+          paddingBottom="xl"
+          direction="row"
+          flex={1}
         >
-          <div data-theme="dark" data-neutral="gray" data-brand="violet">
-            {/* Top Chart: Natural Gas Prices */}
-            <div>
-              <h2>Natural Gas Prices</h2>
-              {loadingPrice ? (
-                <p>Loading price data...</p>
-              ) : (
-                <Chart data={priceData} fixedDateRange={fixedDateRange} />
-              )}
-            </div>
+          <Sidebar />
 
-            {/* Dropdown for Selecting COT Column */}
-            <div style={{ marginTop: "20px" }}>
-              <label htmlFor="cot-column">Select COT Report: </label>
-              <Dropdown
-                options={dropdownOptions}
-                selectedOption={selectedColumn}
-                onOptionSelect={(option) => setSelectedColumn(option.value)}
-              />
-            </div>
+          <Flex direction="column" flex={1} paddingLeft="l">
+            <div data-theme="dark" data-neutral="gray" data-brand="violet">
+              <div>
+                <h2>Natural Gas Prices</h2>
+                {state.loadingPrice ? (
+                  <p>Loading price data...</p>
+                ) : (
+                  <Chart
+                    data={state.priceData}
+                    fixedDateRange={fixedDateRange}
+                  />
+                )}
+              </div>
 
-            {/* Bottom Chart: COT Data */}
-            <div style={{ marginTop: "20px" }}>
-              {loadingCot ? (
-                <p>Loading COT data...</p>
-              ) : (
-                <Chart data={cotData} fixedDateRange={fixedDateRange} />
-              )}
+              <div style={{ marginTop: "20px" }}>
+                <label htmlFor="cot-column">Select COT Report: </label>
+                <Dropdown
+                  options={dropdownOptions}
+                  selectedOption={selectedColumn}
+                  onOptionSelect={(option) => setSelectedColumn(option.value)}
+                />
+              </div>
+
+              <div style={{ marginTop: "20px" }}>
+                {state.loadingCot ? (
+                  <p>Loading COT data...</p>
+                ) : (
+                  <Chart data={state.cotData} fixedDateRange={fixedDateRange} />
+                )}
+              </div>
             </div>
-          </div>
+          </Flex>
         </Flex>
-      </Flex>
+      )}
     </>
   );
 };

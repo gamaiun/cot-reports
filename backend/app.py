@@ -219,6 +219,10 @@ def download_gas_prices():
     gas_price = yf.download(ticker, start=start_date, end=end_date, interval="1d")
     gas_price = gas_price[['Close']]
     gas_price.index = pd.to_datetime(gas_price.index)
+    if gas_price.empty:
+            print(f"No data fetched for {ticker}.")
+    else:
+            print(f"Gas Prices Fetched for {ticker}: Latest Date: {gas_price.index.max()}")
     return gas_price
 
 def download_agri_prices():
@@ -240,6 +244,8 @@ def download_agri_prices():
                 price_data.index = pd.to_datetime(price_data.index)
                 price_data.rename(columns={'Close': yf_ticker}, inplace=True)
                 all_prices.append(price_data)
+                print(f"Data Fetched for {yf_ticker}: Latest Date: {price_data.index.max()}")
+
         except Exception as e:
             print(f"Failed to download data for {yf_ticker}: {e}")
 
@@ -268,6 +274,7 @@ def load_data():
     else:
         # Load and preprocess COT data
         df = pd.concat([pd.DataFrame(cot.cot_year(i, cot_report_type='legacy_futopt')) for i in range(2020, current_year)], ignore_index=False)
+        print("COT Data Range:", df['As of Date in Form YYYY-MM-DD'].min(), df['As of Date in Form YYYY-MM-DD'].max())
 
         ### Agricultural Data Processing ###
         agri_df = df[df['Market and Exchange Names'].isin(agri_cots_list)].copy()
@@ -328,21 +335,27 @@ def load_data():
     return agri_multiindex, gas_multiindex
 
 
-
-
 # Initial data load
 agri_multiindex, gas_multiindex = load_data()
-currency_combined = pd.DataFrame()  # Initialize as empty globally
+currency_combined = load_currency_data()  # Load the data immediately during initialization
 
+
+if not currency_combined.empty:
+    print("Currency Data Sample:")
+    print(currency_combined.tail())
+else:
+    print("Currency data is empty after loading!")
+    
+    
 def initialize_data():
     global currency_combined
     print("Initializing currency data...")
     try:
         currency_combined = load_currency_data()
         print("Currency Data Sample:")
-        print(currency_combined.head())
+        print(currency_combined.tail())
     except Exception as e:
-        print("Error initializing currency data:", e)
+        print("Error initializing currency data, falling back to empty dataframe:", e)
         currency_combined = pd.DataFrame()  # Fallback to empty DataFrame
 
 def scheduled_update():
@@ -395,7 +408,7 @@ def get_currency_prices():
         print("currency_combined Columns:", currency_combined.columns)
         print("currency_combined Index:", currency_combined.index.names)
         print("currency_combined Sample:")
-        print(currency_combined.head())
+        print(currency_combined.tail())
 
         # Filter data for the requested ticker
         if 'ticker' not in currency_combined.index.names:
@@ -419,7 +432,7 @@ def get_currency_prices():
 
         # Debug: Log the filtered response data
         print("Filtered Currency Prices Response Sample:")
-        print(response_data.head())
+        print(response_data.tail())
 
         return jsonify(response_data[["time", "value"]].to_dict(orient="records"))
 
@@ -452,13 +465,13 @@ def get_currency_combined_data():
 
         # Log filtered data for debugging
         print(f"Filtered Data for Ticker {ticker}:")
-        print(filtered_df.head())
+        print(filtered_df.tail())
 
         # Format and return response
         response_data = filtered_df[[column]].dropna().reset_index()
         response_data = response_data.rename(columns={"date": "time", column: "value"})
         print("Filtered Response Data Sample:")
-        print(response_data.head())
+        print(response_data.tail())
 
         return response_data.to_json(orient="records")
     except KeyError as e:

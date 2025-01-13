@@ -19,7 +19,7 @@ CURRENCY_COTS_TO_YF_TICKERS = {
     'BRITISH POUND STERLING - CHICAGO MERCANTILE EXCHANGE': 'GBP=X',
 }
 
-# Columns to drop during data cleaning
+# # Columns to drop during data cleaning
 COLUMNS_TO_DROP = [
    'CFTC_Region_Code', 'CFTC_Commodity_Code', 'Open_Interest_All',
         'Dealer_Positions_Spread_All', 'Asset_Mgr_Positions_Long_All',
@@ -113,68 +113,6 @@ def download_currency_prices():
         return pd.DataFrame()
 
 
-# def get_ticker_value(row, currency_prices):
-#     """
-#     Safely retrieve the value from currency_prices for the given ticker and date.
-
-#     Args:
-#         row: A row of the filtered_df DataFrame (with 'YF_Ticker' column).
-#         currency_prices: A DataFrame containing price data.
-
-#     Returns:
-#         A scalar value from currency_prices for the specified ticker and date, or None if not found.
-#     """
-#     ticker = row['YF_Ticker']
-#     date = row.name[1]  # 'date' is the second level of the multi-index
-#     try:
-#         if ticker in currency_prices.columns and date in currency_prices.index:
-#             # Use `.at` to ensure scalar access
-#             return currency_prices.at[date, ticker]
-#         else:
-#             return None
-#     except KeyError:
-#         return None
-
-# def map_currency_prices(filtered_df, currency_prices, ticker_mapping):
-#     """
-#     Maps Yahoo Finance prices to filtered_df based on ticker and date.
-#     Handles multi-level currency_prices dataframe.
-#     """
-#     # Extract clean ticker names from currency_prices.columns
-#     clean_columns = currency_prices.columns.droplevel(0)
-#     currency_prices.columns = clean_columns
-
-#     # Create an empty column for the mapped values
-#     filtered_df['YF_Ticker_Values'] = None
-
-#     # Iterate through the ticker mapping and populate prices efficiently
-#     for cot_ticker, yf_ticker in ticker_mapping.items():
-#         if yf_ticker in clean_columns:  # Ensure YF ticker exists in the prices dataframe
-#             try:
-#                 # Mask rows where 'ticker' matches and align 'date' with the currency_prices index
-#                 mask = filtered_df.index.get_level_values('ticker') == cot_ticker
-#                 filtered_df.loc[mask, 'YF_Ticker_Values'] = filtered_df.loc[mask].index.get_level_values('date').map(
-#                     currency_prices[yf_ticker]
-#                 )
-#             except Exception as e:
-#                 print(f"Failed to map prices for {cot_ticker} -> {yf_ticker}: {e}")
-
-#     return filtered_df
-
-# def get_currency_price(row, currency_prices, ticker_mapping):
-#     """
-#     Helper function to safely fetch the currency price for a given row.
-#     Ensures that date and ticker are correctly matched.
-#     """
-#     ticker = ticker_mapping.get(row.name[0])  # Map COT ticker to YF ticker
-#     date = pd.to_datetime(row.name[1])  # Ensure date is in datetime format
-
-#     # Validate ticker and date before fetching
-#     if ticker and ticker in currency_prices.columns:
-#         if date in currency_prices.index:
-#             return currency_prices.at[date, ticker]  # Fetch single scalar value safely
-#     return None
-
 def get_price(row, currency_prices):
     """
     Fetch price for a given ticker and date from a MultiIndex DataFrame.
@@ -187,53 +125,7 @@ def get_price(row, currency_prices):
     except KeyError:
         return None
         
-        
-        
-# def process_currency_cot_data(currency_prices):
-#     """
-#     Process currency and COT data, ensuring proper filtering and integration.
-#     """
-#     # try:
-#         # Download and concatenate COT data for multiple years
-#     df = pd.concat(
-#             [pd.DataFrame(cot.cot_year(year, cot_report_type='traders_in_financial_futures_futopt'))
-#              for year in range(2020, 2025)],
-#             ignore_index=True
-#         )
     
-
-#          # Filter relevant rows based on tickers
-#     filtered_df = df[df['Market_and_Exchange_Names'].isin(CURRENCY_COTS_TO_YF_TICKERS.keys())].copy()
-#          # Rename relevant columns
-#     filtered_df.rename(columns=RENAMING_DICT, inplace=True)
-
-
-#     #     # Convert 'date' column to datetime and set MultiIndex
-#     filtered_df['date'] = pd.to_datetime(filtered_df['date'], errors='coerce')
-#     filtered_df.set_index(['ticker', 'date'], inplace=True)
-#     filtered_df.sort_index(inplace=True)
-#     filtered_df.drop(columns=COLUMNS_TO_DROP, inplace=True, errors='ignore')
-
-#     numeric_columns = [
-#             'Dealer Long', 'Dealer Short',
-#             'Asset Manager Long', 'Asset Manager Short'
-#         ]
-        
-#     for col in numeric_columns:
-#             if col in filtered_df.columns:
-#                 filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
-
-#         # Calculate new columns
-#     filtered_df['Net Dealers'] = filtered_df['Dealer Long'] - filtered_df['Dealer Short']
-#     filtered_df['Net Asset Managers'] = filtered_df['Asset Manager Long'] - filtered_df['Asset Manager Short']
-
-#     #     # Ensure currency_prices has date as index
-#     currency_prices.index = pd.to_datetime(currency_prices.index)
-
-#     filtered_df['YF_Ticker_Values'] = filtered_df.apply(
-#             get_currency_price, axis=1, args=(currency_prices, CURRENCY_COTS_TO_YF_TICKERS)
-#         )
-#     return filtered_df
 
 
 def load_currency_data(force_refresh=False):
@@ -336,3 +228,4 @@ def process_currency_cot_data(currency_prices):
     filtered_df['YF_Ticker_Values'] = filtered_df.apply(get_price, axis=1, args=(currency_prices,))
     
     return filtered_df
+

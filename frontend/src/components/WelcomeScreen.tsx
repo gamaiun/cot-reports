@@ -12,20 +12,20 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onClose }) => {
       <WelcomeBox>
         <Disclaimer>
           <p>
-            This is a live demo website built using Next.js (frontend) and Flask
-            (backend). It retrieves publicly available datasets from{" "}
+            This is a portfolio website built using Next.js (frontend) and Flask
+            (backend). It retrieves latest publicly available datasets from{" "}
             <a
               href="https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm"
               target="_blank"
               rel="noopener noreferrer"
             >
-              CFTC COT reports,
+              CFTC COT reports
             </a>{" "}
-            performs Net calculations with Python inside a Podman container.{" "}
-            <br></br>
+            and performs Net calculations using Python inside a Podman
+            container. <br></br>
             <br></br>Please note that this website is not intended for trading
-            purposes and does not constitute financial advice. Consult a
-            professional financial advisor before making any trading decisions.
+            purposes. Consult a professional financial advisor before making any
+            trading decisions.
           </p>
         </Disclaimer>
         <Button onClick={onClose}>Proceed to Main Page</Button>
